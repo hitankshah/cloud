@@ -13,9 +13,9 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string;
-  phone: string;
-  role: 'customer' | 'restaurant_owner';
-  created_at: string;
+  phone?: string | null;
+  role: 'customer' | 'restaurant_owner' | 'guest';
+  created_at?: string;
 }
 
 export interface Restaurant {
@@ -31,6 +31,10 @@ export interface Restaurant {
   rating: number;
   delivery_time: string;
   created_at: string;
+  open_time?: string | null;
+  close_time?: string | null;
+  is_open?: boolean | null;
+  schedule_notes?: string | null;
 }
 
 export interface MenuItem {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, MapPin, Phone, Package } from 'lucide-react';
+import { MapPin, Phone, Package } from 'lucide-react';
 import { supabase, Order } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -13,7 +13,11 @@ interface OrderWithDetails extends Order {
   }>;
 }
 
-export const OrderManagement = () => {
+interface OrderManagementProps {
+  isEmbedded?: boolean;
+}
+
+export const OrderManagement = ({ isEmbedded = false }: OrderManagementProps) => {
   const [orders, setOrders] = useState<OrderWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -112,15 +116,15 @@ export const OrderManagement = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className={`${isEmbedded ? 'py-12' : 'min-h-screen'} flex items-center justify-center`}>
         <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-600 border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className={`${isEmbedded ? '' : 'min-h-screen bg-gray-50 py-8'}`}>
+      <div className={`${isEmbedded ? '' : 'max-w-7xl mx-auto'} px-4 sm:px-6 lg:px-8`}>
         <h1 className="text-4xl font-bold text-gray-900 mb-8">Order Management</h1>
 
         <div className="bg-white rounded-xl shadow-sm p-6 mb-8">

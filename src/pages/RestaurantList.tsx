@@ -72,10 +72,10 @@ export const RestaurantList = ({ onRestaurantSelect }: RestaurantListProps) => {
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Order from the best cloud restaurants
+            Discover our in-house cloud kitchen brands
           </h1>
           <p className="text-xl text-emerald-50">
-            Fresh food delivered to your doorstep
+            Curated menus crafted for delivery-only excellence
           </p>
         </div>
       </div>

@@ -45,14 +45,22 @@ export const RestaurantDetail = ({ restaurant, onBack }: RestaurantDetailProps) 
     : menuItems.filter((item) => item.category === selectedCategory);
 
   const handleAddToCart = (item: MenuItem) => {
-    if (!user) {
+    if (!profile) {
+      alert('Sign in or continue as a guest to add items to the cart.');
+      return;
+    }
+
+    const role = profile.role;
+    if (role !== 'customer' && role !== 'guest') {
+      alert('Only customer accounts can place orders.');
+      return;
+    }
+
+    if (!user && role !== 'guest') {
       alert('Please sign in to add items to cart');
       return;
     }
-    if (profile?.role !== 'customer') {
-      alert('Only customers can add items to cart');
-      return;
-    }
+
     addToCart(item, restaurant.id);
   };
 

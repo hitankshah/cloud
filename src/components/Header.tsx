@@ -10,9 +10,12 @@ interface HeaderProps {
 }
 
 export const Header = ({ onAuthClick, onCartClick, currentView, onViewChange }: HeaderProps) => {
-  const { user, profile, signOut } = useAuth();
+  const { profile, signOut } = useAuth();
   const { getItemCount } = useCart();
   const itemCount = getItemCount();
+  const isAuthenticated = Boolean(profile);
+  const isCustomer = profile?.role === 'customer';
+  const isOwner = profile?.role === 'restaurant_owner';
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-40">
@@ -23,7 +26,10 @@ export const Header = ({ onAuthClick, onCartClick, currentView, onViewChange }: 
             onClick={() => onViewChange('restaurants')}
           >
             <Store className="text-emerald-600" size={32} />
-            <span className="ml-2 text-2xl font-bold text-gray-900">CloudEats</span>
+            <div className="ml-2">
+              <span className="block text-2xl font-bold text-gray-900">Cloud Kitchen HQ</span>
+              <span className="block text-xs uppercase tracking-wide text-emerald-500">Our in-house brands only</span>
+            </div>
           </div>
 
           <nav className="hidden md:flex items-center space-x-8">
@@ -37,7 +43,7 @@ export const Header = ({ onAuthClick, onCartClick, currentView, onViewChange }: 
             >
               Restaurants
             </button>
-            {user && profile?.role === 'customer' && (
+            {isCustomer && (
               <button
                 onClick={() => onViewChange('orders')}
                 className={`font-medium transition-colors ${
@@ -49,7 +55,7 @@ export const Header = ({ onAuthClick, onCartClick, currentView, onViewChange }: 
                 My Orders
               </button>
             )}
-            {user && profile?.role === 'restaurant_owner' && (
+            {isOwner && (
               <button
                 onClick={() => onViewChange('dashboard')}
                 className={`font-medium transition-colors ${
@@ -61,10 +67,22 @@ export const Header = ({ onAuthClick, onCartClick, currentView, onViewChange }: 
                 Dashboard
               </button>
             )}
+            {isOwner && (
+              <button
+                onClick={() => onViewChange('admin')}
+                className={`font-medium transition-colors ${
+                  currentView === 'admin'
+                    ? 'text-emerald-600'
+                    : 'text-gray-700 hover:text-emerald-600'
+                }`}
+              >
+                Admin Panel
+              </button>
+            )}
           </nav>
 
           <div className="flex items-center space-x-4">
-            {user && profile?.role === 'customer' && (
+            {(isCustomer || profile?.role === 'guest') && (
               <button
                 onClick={onCartClick}
                 className="relative p-2 text-gray-700 hover:text-emerald-600 transition-colors"
@@ -78,7 +96,7 @@ export const Header = ({ onAuthClick, onCartClick, currentView, onViewChange }: 
               </button>
             )}
 
-            {user ? (
+            {isAuthenticated ? (
               <div className="flex items-center space-x-3">
                 <div className="hidden sm:block text-right">
                   <p className="text-sm font-medium text-gray-900">{profile?.full_name}</p>

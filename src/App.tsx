@@ -11,8 +11,16 @@ import { CustomerOrders } from './pages/CustomerOrders';
 import { OwnerDashboard } from './pages/OwnerDashboard';
 import { OrderManagement } from './pages/OrderManagement';
 import { Restaurant } from './lib/supabase';
+import { AdminPanel } from './pages/Admin/AdminPanel';
 
-type View = 'restaurants' | 'restaurant-detail' | 'checkout' | 'orders' | 'dashboard' | 'order-management';
+type View =
+  | 'restaurants'
+  | 'restaurant-detail'
+  | 'checkout'
+  | 'orders'
+  | 'dashboard'
+  | 'order-management'
+  | 'admin';
 
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -20,6 +28,8 @@ function AppContent() {
   const [currentView, setCurrentView] = useState<View>('restaurants');
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const { loading, profile } = useAuth();
+  const isCustomer = profile?.role === 'customer';
+  const isOwner = profile?.role === 'restaurant_owner';
 
   if (loading) {
     return (
@@ -40,6 +50,10 @@ function AppContent() {
   };
 
   const handleCheckout = () => {
+    if (!profile || profile.role !== 'customer') {
+      setShowAuthModal(true);
+      return;
+    }
     setCurrentView('checkout');
   };
 
@@ -78,15 +92,19 @@ function AppContent() {
         />
       )}
 
-      {currentView === 'orders' && profile?.role === 'customer' && (
+      {currentView === 'orders' && isCustomer && (
         <CustomerOrders />
       )}
 
-      {currentView === 'dashboard' && profile?.role === 'restaurant_owner' && (
+      {currentView === 'dashboard' && isOwner && (
         <div className="space-y-8">
           <OwnerDashboard />
           <OrderManagement />
         </div>
+      )}
+
+      {currentView === 'admin' && isOwner && (
+        <AdminPanel />
       )}
 
       <AuthModal

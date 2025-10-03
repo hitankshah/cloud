@@ -11,12 +11,13 @@ interface CheckoutProps {
 
 export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
   const { cart, restaurantId, getTotalAmount, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [error, setError] = useState('');
+  const isGuest = profile?.role === 'guest';
 
   const subtotal = getTotalAmount();
   const deliveryFee = 2.99;
@@ -26,6 +27,12 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    if (isGuest) {
+      setError('Guest checkout is not available. Please create an account to place your delivery.');
+      setLoading(false);
+      return;
+    }
 
     if (!user || !restaurantId) {
       setError('Unable to place order. Please try again.');
@@ -168,9 +175,15 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
                   </div>
                 </div>
 
+                {isGuest && (
+                  <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg p-3 mb-4">
+                    You&apos;re browsing as a guest. Sign in or create an account from the header to confirm delivery orders.
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || isGuest}
                   className="w-full bg-emerald-600 text-white py-4 rounded-lg font-semibold text-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
                 >
                   {loading ? 'Placing Order...' : 'Place Order'}
