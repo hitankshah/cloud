@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, MapPin, Phone, FileText } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { supabase } from '../lib/supabase';
 
 interface CheckoutProps {
@@ -10,14 +11,13 @@ interface CheckoutProps {
 }
 
 export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
-  const { cart, restaurantId, getTotalAmount, clearCart } = useCart();
-  const { user, profile } = useAuth();
+  const { cart, getTotalAmount, clearCart } = useCart();
+  const { user, userProfile } = useAuth();
+  const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
-  const [error, setError] = useState('');
-  const isGuest = profile?.role === 'guest';
 
   const subtotal = getTotalAmount();
   const deliveryFee = 2.99;
@@ -25,17 +25,10 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
-    if (isGuest) {
-      setError('Guest checkout is not available. Please create an account to place your delivery.');
-      setLoading(false);
-      return;
-    }
-
-    if (!user || !restaurantId) {
-      setError('Unable to place order. Please try again.');
+    if (!user || !userProfile) {
+      addNotification('Please sign in to place an order', 'error');
       setLoading(false);
       return;
     }
@@ -45,12 +38,14 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
         .from('orders')
         .insert({
           customer_id: user.id,
-          restaurant_id: restaurantId,
+          customer_name: userProfile.full_name,
+          customer_email: userProfile.email,
+          customer_phone: phone,
           status: 'pending',
           total_amount: total,
           delivery_address: deliveryAddress,
-          customer_phone: phone,
           special_instructions: specialInstructions,
+          is_read: false,
         })
         .select()
         .single();
@@ -71,11 +66,12 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
 
       if (itemsError) throw itemsError;
 
+      addNotification('Order placed successfully!', 'success');
       clearCart();
       onSuccess();
     } catch (err: any) {
       console.error('Error placing order:', err);
-      setError(err.message || 'Failed to place order. Please try again.');
+      addNotification(err.message || 'Failed to place order', 'error');
     } finally {
       setLoading(false);
     }
@@ -99,12 +95,6 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
           </div>
 
           <div className="p-8">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-                {error}
-              </div>
-            )}
-
             <form onSubmit={handlePlaceOrder} className="space-y-6">
               <div>
                 <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -175,15 +165,9 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
                   </div>
                 </div>
 
-                {isGuest && (
-                  <p className="text-sm text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg p-3 mb-4">
-                    You&apos;re browsing as a guest. Sign in or create an account from the header to confirm delivery orders.
-                  </p>
-                )}
-
                 <button
                   type="submit"
-                  disabled={loading || isGuest}
+                  disabled={loading}
                   className="w-full bg-emerald-600 text-white py-4 rounded-lg font-semibold text-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
                 >
                   {loading ? 'Placing Order...' : 'Place Order'}

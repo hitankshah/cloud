@@ -9,56 +9,39 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export interface Profile {
+export interface User {
   id: string;
   email: string;
   full_name: string;
-  phone?: string | null;
-  role: 'customer' | 'restaurant_owner' | 'guest';
-  created_at?: string;
-}
-
-export interface Restaurant {
-  id: string;
-  owner_id: string;
-  name: string;
-  description: string;
-  address: string;
   phone: string;
-  image_url: string;
-  cuisine_type: string;
-  is_active: boolean;
-  rating: number;
-  delivery_time: string;
+  role: 'customer' | 'admin';
   created_at: string;
-  open_time?: string | null;
-  close_time?: string | null;
-  is_open?: boolean | null;
-  schedule_notes?: string | null;
 }
 
 export interface MenuItem {
   id: string;
-  restaurant_id: string;
   name: string;
   description: string;
   price: number;
   image_url: string;
-  category: string;
+  category: 'morning' | 'afternoon' | 'dinner';
   is_available: boolean;
   is_vegetarian: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export interface Order {
   id: string;
-  customer_id: string;
-  restaurant_id: string;
-  status: 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
+  customer_id: string | null;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
   total_amount: number;
   delivery_address: string;
-  customer_phone: string;
   special_instructions: string;
+  is_read: boolean;
   created_at: string;
   updated_at: string;
 }

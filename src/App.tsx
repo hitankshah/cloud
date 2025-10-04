@@ -1,35 +1,22 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import { AuthModal } from './components/AuthModal';
 import { Header } from './components/Header';
 import { CartDrawer } from './components/CartDrawer';
-import { RestaurantList } from './pages/RestaurantList';
-import { RestaurantDetail } from './pages/RestaurantDetail';
+import { NotificationToast } from './components/NotificationToast';
+import { Home } from './pages/Home';
 import { Checkout } from './pages/Checkout';
-import { CustomerOrders } from './pages/CustomerOrders';
-import { OwnerDashboard } from './pages/OwnerDashboard';
-import { OrderManagement } from './pages/OrderManagement';
-import { Restaurant } from './lib/supabase';
 import { AdminPanel } from './pages/Admin/AdminPanel';
 
-type View =
-  | 'restaurants'
-  | 'restaurant-detail'
-  | 'checkout'
-  | 'orders'
-  | 'dashboard'
-  | 'order-management'
-  | 'admin';
+type View = 'home' | 'checkout' | 'admin';
 
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCart, setShowCart] = useState(false);
-  const [currentView, setCurrentView] = useState<View>('restaurants');
-  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
-  const { loading, profile } = useAuth();
-  const isCustomer = profile?.role === 'customer';
-  const isOwner = profile?.role === 'restaurant_owner';
+  const [currentView, setCurrentView] = useState<View>('home');
+  const { loading, userProfile } = useAuth();
 
   if (loading) {
     return (
@@ -39,72 +26,39 @@ function AppContent() {
     );
   }
 
-  const handleRestaurantSelect = (restaurant: Restaurant) => {
-    setSelectedRestaurant(restaurant);
-    setCurrentView('restaurant-detail');
-  };
-
-  const handleBackToRestaurants = () => {
-    setSelectedRestaurant(null);
-    setCurrentView('restaurants');
-  };
-
   const handleCheckout = () => {
-    if (!profile || profile.role !== 'customer') {
-      setShowAuthModal(true);
-      return;
-    }
     setCurrentView('checkout');
   };
 
   const handleCheckoutSuccess = () => {
-    setCurrentView('orders');
+    setCurrentView('home');
   };
 
-  const handleViewChange = (view: string) => {
-    setCurrentView(view as View);
+  const handleAdminClick = () => {
+    if (userProfile?.role === 'admin') {
+      setCurrentView('admin');
+    }
   };
+
+  if (currentView === 'admin' && userProfile?.role === 'admin') {
+    return <AdminPanel />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header
         onAuthClick={() => setShowAuthModal(true)}
         onCartClick={() => setShowCart(true)}
-        currentView={currentView}
-        onViewChange={handleViewChange}
+        onAdminClick={handleAdminClick}
       />
 
-      {currentView === 'restaurants' && (
-        <RestaurantList onRestaurantSelect={handleRestaurantSelect} />
-      )}
-
-      {currentView === 'restaurant-detail' && selectedRestaurant && (
-        <RestaurantDetail
-          restaurant={selectedRestaurant}
-          onBack={handleBackToRestaurants}
-        />
-      )}
+      {currentView === 'home' && <Home />}
 
       {currentView === 'checkout' && (
         <Checkout
           onBack={() => setShowCart(true)}
           onSuccess={handleCheckoutSuccess}
         />
-      )}
-
-      {currentView === 'orders' && isCustomer && (
-        <CustomerOrders />
-      )}
-
-      {currentView === 'dashboard' && isOwner && (
-        <div className="space-y-8">
-          <OwnerDashboard />
-          <OrderManagement />
-        </div>
-      )}
-
-      {currentView === 'admin' && isOwner && (
-        <AdminPanel />
       )}
 
       <AuthModal
@@ -117,6 +71,8 @@ function AppContent() {
         onClose={() => setShowCart(false)}
         onCheckout={handleCheckout}
       />
+
+      <NotificationToast />
     </div>
   );
 }
@@ -125,7 +81,9 @@ function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <AppContent />
+        <NotificationProvider>
+          <AppContent />
+        </NotificationProvider>
       </CartProvider>
     </AuthProvider>
   );

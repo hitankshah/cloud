@@ -1,17 +1,13 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase, Profile } from '../lib/supabase';
-import { User } from '@supabase/supabase-js';
-
-type Role = 'customer' | 'restaurant_owner' | 'guest' | 'admin';
+import { supabase, User as UserProfile } from '../lib/supabase';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface AuthContextType {
-  user: User | null;
-  profile: Profile | null;
+  user: SupabaseUser | null;
+  userProfile: UserProfile | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, role: Exclude<Role, 'guest' | 'admin'>) => Promise<void>;
-  adminSignIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, phone: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signInAsGuest: (displayName?: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -26,28 +22,15 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const GUEST_PROFILE_KEY = 'cloud_guest_profile';
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
-      } else if (typeof window !== 'undefined') {
-        const storedGuest = window.localStorage.getItem(GUEST_PROFILE_KEY);
-        if (storedGuest) {
-          try {
-            const guestProfile = JSON.parse(storedGuest) as Profile;
-            setProfile(guestProfile);
-          } catch (error) {
-            console.error('Error parsing guest profile:', error);
-            window.localStorage.removeItem(GUEST_PROFILE_KEY);
-          }
-        }
-        setLoading(false);
       } else {
         setLoading(false);
       }
@@ -59,10 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (session?.user) {
           await fetchProfile(session.user.id);
         } else {
-          setProfile(null);
-          if (typeof window !== 'undefined') {
-            window.localStorage.removeItem(GUEST_PROFILE_KEY);
-          }
+          setUserProfile(null);
           setLoading(false);
         }
       })();
@@ -74,13 +54,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
       if (error) throw error;
-      setProfile(data);
+      setUserProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -88,27 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const adminSignIn = async (email: string, password: string) => {
-    // Only allow login if user is admin in DB
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    if (data.user) {
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .maybeSingle();
-      if (profileError) throw profileError;
-      if (!profileData || profileData.role !== 'admin') {
-        throw new Error('Not authorized as admin');
-      }
-      setProfile(profileData);
-    }
-  };
-  const signUp = async (email: string, password: string, fullName: string, role: Exclude<Role, 'guest' | 'admin'>) => {
+  const signUp = async (email: string, password: string, fullName: string, phone: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -118,12 +78,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (data.user) {
       const { error: profileError } = await supabase
-        .from('profiles')
+        .from('users')
         .insert({
           id: data.user.id,
           email,
           full_name: fullName,
-          role,
+          phone,
+          role: 'customer',
         });
 
       if (profileError) throw profileError;
@@ -139,38 +100,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (error) throw error;
   };
 
-  const signInAsGuest = async (displayName?: string) => {
-    const guestProfile: Profile = {
-      id: 'guest',
-      email: 'guest@cloudkitchen.local',
-      full_name: displayName?.trim() || 'Guest Diner',
-      role: 'guest',
-    };
-
-    setUser(null);
-    setProfile(guestProfile);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(GUEST_PROFILE_KEY, JSON.stringify(guestProfile));
-    }
-    setLoading(false);
-  };
-
   const signOut = async () => {
-    if (profile?.role === 'guest') {
-      setUser(null);
-      setProfile(null);
-      if (typeof window !== 'undefined') {
-        window.localStorage.removeItem(GUEST_PROFILE_KEY);
-      }
-      return;
-    }
-
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signInAsGuest, adminSignIn, signOut }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

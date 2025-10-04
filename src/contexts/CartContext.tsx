@@ -7,8 +7,7 @@ interface CartItem extends MenuItem {
 
 interface CartContextType {
   cart: CartItem[];
-  restaurantId: string | null;
-  addToCart: (item: MenuItem, restaurantId: string) => void;
+  addToCart: (item: MenuItem) => void;
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
@@ -28,18 +27,8 @@ export const useCart = () => {
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [restaurantId, setRestaurantId] = useState<string | null>(null);
 
-  const addToCart = (item: MenuItem, newRestaurantId: string) => {
-    if (restaurantId && restaurantId !== newRestaurantId) {
-      if (!confirm('Your cart contains items from another restaurant. Clear cart and add this item?')) {
-        return;
-      }
-      setCart([]);
-    }
-
-    setRestaurantId(newRestaurantId);
-
+  const addToCart = (item: MenuItem) => {
     setCart(prevCart => {
       const existingItem = prevCart.find(cartItem => cartItem.id === item.id);
       if (existingItem) {
@@ -54,13 +43,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeFromCart = (itemId: string) => {
-    setCart(prevCart => {
-      const newCart = prevCart.filter(item => item.id !== itemId);
-      if (newCart.length === 0) {
-        setRestaurantId(null);
-      }
-      return newCart;
-    });
+    setCart(prevCart => prevCart.filter(item => item.id !== itemId));
   };
 
   const updateQuantity = (itemId: string, quantity: number) => {
@@ -78,7 +61,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = () => {
     setCart([]);
-    setRestaurantId(null);
   };
 
   const getTotalAmount = () => {
@@ -93,7 +75,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     <CartContext.Provider
       value={{
         cart,
-        restaurantId,
         addToCart,
         removeFromCart,
         updateQuantity,

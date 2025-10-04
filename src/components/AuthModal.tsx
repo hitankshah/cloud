@@ -12,11 +12,10 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<'customer' | 'restaurant_owner'>('customer');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, signInAsGuest, adminSignIn } = useAuth();
-  const [isAdminLogin, setIsAdminLogin] = useState(false);
+  const { signIn, signUp } = useAuth();
 
   if (!isOpen) return null;
 
@@ -26,12 +25,15 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     setLoading(true);
 
     try {
-      if (isAdminLogin) {
-        await adminSignIn(email, password);
-      } else if (isLogin) {
+      if (isLogin) {
         await signIn(email, password);
       } else {
-        await signUp(email, password, fullName, role);
+        if (!phone) {
+          setError('Phone number is required');
+          setLoading(false);
+          return;
+        }
+        await signUp(email, password, fullName, phone);
       }
       onClose();
       resetForm();
@@ -46,34 +48,13 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     setEmail('');
     setPassword('');
     setFullName('');
-    setRole('customer');
+    setPhone('');
     setError('');
   };
 
   const toggleMode = () => {
     setIsLogin(!isLogin);
-    setIsAdminLogin(false);
     resetForm();
-  };
-
-  const toggleAdminLogin = () => {
-    setIsAdminLogin(!isAdminLogin);
-    setIsLogin(false);
-    resetForm();
-  };
-
-  const handleGuestContinue = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      await signInAsGuest(fullName);
-      onClose();
-      resetForm();
-    } catch (err: any) {
-      setError(err.message || 'Unable to continue as guest');
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -86,40 +67,12 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           <X size={24} />
         </button>
 
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900">
-              {isAdminLogin
-                ? 'Admin Login'
-                : isLogin
-                ? 'Welcome Back'
-                : 'Join Our Kitchen'}
-            </h2>
-            <p className="text-gray-600">
-              {isAdminLogin
-                ? 'Sign in to manage Cloud Kitchen menus and orders'
-                : isLogin
-                ? 'Sign in to manage your orders'
-                : 'Create an account to place orders'}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={toggleMode}
-              className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
-            >
-              {isLogin ? 'Need an account?' : 'Already registered?'}
-            </button>
-            <button
-              type="button"
-              onClick={toggleAdminLogin}
-              className="text-sm font-medium text-red-600 hover:text-red-700"
-            >
-              {isAdminLogin ? 'User Login' : 'Admin Login'}
-            </button>
-          </div>
-        </div>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+          {isLogin ? 'Welcome Back' : 'Create Account'}
+        </h2>
+        <p className="text-gray-600 mb-6">
+          {isLogin ? 'Sign in to place orders' : 'Join us today'}
+        </p>
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -128,7 +81,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && !isAdminLogin && (
+          {!isLogin && (
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -139,6 +92,20 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Your phone number"
                   required
                 />
               </div>
@@ -175,40 +142,19 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 ${
-              isAdminLogin
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-emerald-600 text-white hover:bg-emerald-700'
-            }`}
+            className="w-full bg-emerald-600 text-white py-3 rounded-lg font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
           >
-            {loading
-              ? 'Please wait...'
-              : isAdminLogin
-              ? 'Admin Sign In'
-              : isLogin
-              ? 'Sign In'
-              : 'Sign Up'}
+            {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Sign Up'}
           </button>
         </form>
 
-        <div className="mt-6">
-          <div className="relative">
-            <span className="absolute inset-x-0 top-1/2 border-t border-gray-200" aria-hidden="true"></span>
-            <span className="relative block mx-auto w-max px-3 bg-white text-xs font-semibold text-gray-400 uppercase">
-              or
-            </span>
-          </div>
+        <div className="mt-6 text-center">
           <button
-            type="button"
-            onClick={handleGuestContinue}
-            disabled={loading}
-            className="mt-4 w-full border border-emerald-200 text-emerald-700 bg-emerald-50 py-3 rounded-lg font-semibold hover:bg-emerald-100 transition-colors disabled:opacity-50"
+            onClick={toggleMode}
+            className="text-emerald-600 hover:text-emerald-700 font-medium"
           >
-            Continue as Guest
+            {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
           </button>
-          <p className="text-xs text-gray-500 mt-2 text-center">
-            Guests can browse menus and build a cart. Create an account to place delivery orders.
-          </p>
         </div>
       </div>
     </div>
