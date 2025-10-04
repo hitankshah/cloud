@@ -12,11 +12,13 @@ interface CheckoutProps {
 
 export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
   const { cart, getTotalAmount, clearCart } = useCart();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, isGuest, guestInfo } = useAuth();
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(guestInfo?.phone || '');
+  const [customerName, setCustomerName] = useState(guestInfo?.fullName || '');
+  const [customerEmail, setCustomerEmail] = useState(guestInfo?.email || '');
   const [specialInstructions, setSpecialInstructions] = useState('');
 
   const subtotal = getTotalAmount();
@@ -27,26 +29,35 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
     e.preventDefault();
     setLoading(true);
 
-    if (!user || !userProfile) {
+    // Validate required fields for both authenticated and guest users
+    if (isGuest && (!customerName || !customerEmail || !phone)) {
+      addNotification('Please fill in all required fields', 'error');
+      setLoading(false);
+      return;
+    }
+
+    if (!isGuest && (!user || !userProfile)) {
       addNotification('Please sign in to place an order', 'error');
       setLoading(false);
       return;
     }
 
     try {
+      const orderData = {
+        customer_id: isGuest ? null : user!.id,
+        customer_name: isGuest ? customerName : userProfile!.full_name,
+        customer_email: isGuest ? customerEmail : userProfile!.email,
+        customer_phone: phone,
+        status: 'pending' as const,
+        total_amount: total,
+        delivery_address: deliveryAddress,
+        special_instructions: specialInstructions,
+        is_read: false,
+      };
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .insert({
-          customer_id: user.id,
-          customer_name: userProfile.full_name,
-          customer_email: userProfile.email,
-          customer_phone: phone,
-          status: 'pending',
-          total_amount: total,
-          delivery_address: deliveryAddress,
-          special_instructions: specialInstructions,
-          is_read: false,
-        })
+        .insert(orderData)
         .select()
         .single();
 
@@ -91,11 +102,52 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-8">
             <h1 className="text-3xl font-bold">Checkout</h1>
-            <p className="mt-2 text-emerald-50">Complete your order details</p>
+            <p className="mt-2 text-emerald-50">
+              {isGuest ? 'Complete your order details as a guest' : 'Complete your order details'}
+            </p>
+            {isGuest && (
+              <div className="mt-4 bg-emerald-500 bg-opacity-50 rounded-lg px-4 py-2">
+                <p className="text-sm text-emerald-50">
+                  🎯 You're ordering as a guest. Sign up to track your orders and save your preferences!
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="p-8">
             <form onSubmit={handlePlaceOrder} className="space-y-6">
+              {isGuest && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="Enter your full name"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="Enter your email address"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
               <div>
                 <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
                   <MapPin size={18} className="mr-2" />
@@ -121,7 +173,7 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="Your phone number"
+                  placeholder="Phone number with country code (e.g., +1 555-123-4567)"
                   required
                 />
               </div>

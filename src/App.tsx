@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -9,14 +9,35 @@ import { NotificationToast } from './components/NotificationToast';
 import { Home } from './pages/Home';
 import { Checkout } from './pages/Checkout';
 import { AdminPanel } from './pages/Admin/AdminPanel';
+import { AdminLogin } from './pages/Admin/AdminLogin';
 
-type View = 'home' | 'checkout' | 'admin';
+type View = 'home' | 'checkout' | 'admin' | 'admin-login';
 
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [currentView, setCurrentView] = useState<View>('home');
   const { loading, userProfile } = useAuth();
+
+  // Check if current URL is admin route
+  useEffect(() => {
+    if (window.location.pathname === '/admin') {
+      if (userProfile?.role === 'admin') {
+        setCurrentView('admin');
+      } else {
+        setCurrentView('admin-login');
+      }
+    }
+  }, [userProfile]);
+
+  // Update URL when view changes
+  useEffect(() => {
+    if (currentView === 'admin') {
+      window.history.pushState(null, '', '/admin');
+    } else if (currentView === 'home') {
+      window.history.pushState(null, '', '/');
+    }
+  }, [currentView]);
 
   if (loading) {
     return (
@@ -37,8 +58,24 @@ function AppContent() {
   const handleAdminClick = () => {
     if (userProfile?.role === 'admin') {
       setCurrentView('admin');
+    } else {
+      setCurrentView('admin-login');
     }
   };
+
+  const handleAdminLoginSuccess = () => {
+    // Check if user is actually admin after login
+    if (userProfile?.role === 'admin') {
+      setCurrentView('admin');
+    } else {
+      setCurrentView('admin-login');
+    }
+  };
+
+  // Admin routes
+  if (currentView === 'admin-login') {
+    return <AdminLogin onSuccess={handleAdminLoginSuccess} />;
+  }
 
   if (currentView === 'admin' && userProfile?.role === 'admin') {
     return <AdminPanel />;
@@ -75,6 +112,8 @@ function AppContent() {
       <NotificationToast />
     </div>
   );
+
+
 }
 
 function App() {

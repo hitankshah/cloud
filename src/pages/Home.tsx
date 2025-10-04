@@ -9,8 +9,8 @@ export const Home = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<'morning' | 'afternoon' | 'dinner'>('morning');
-  const { addToCart, cart } = useCart();
-  const { user } = useAuth();
+  const { addToCart, cart, updateQuantity, removeFromCart } = useCart();
+  const { } = useAuth();
   const { addNotification } = useNotification();
 
   useEffect(() => {
@@ -43,10 +43,6 @@ export const Home = () => {
   };
 
   const handleAddToCart = (item: MenuItem) => {
-    if (!user) {
-      addNotification('Please sign in to add items to cart', 'warning');
-      return;
-    }
     addToCart(item);
     addNotification(`${item.name} added to cart`, 'success');
   };
@@ -75,10 +71,10 @@ export const Home = () => {
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            CloudEats Kitchen
+            Bhojanalay Kitchen
           </h1>
           <p className="text-xl text-emerald-50">
-            Fresh meals prepared daily, delivered to your doorstep
+            Fresh meals prepared daily Order now and enjoy delicious food delivered.
           </p>
         </div>
       </div>
@@ -165,12 +161,7 @@ export const Home = () => {
                       {quantity > 0 ? (
                         <div className="flex items-center space-x-3 bg-emerald-50 rounded-lg px-3 py-2">
                           <button
-                            onClick={() => {
-                              const cartItem = cart.find(ci => ci.id === item.id);
-                              if (cartItem) {
-                                addToCart({...item});
-                              }
-                            }}
+                            onClick={() => addToCart(item)}
                             className="text-emerald-600 hover:text-emerald-700"
                           >
                             <Plus size={18} />
@@ -179,8 +170,10 @@ export const Home = () => {
                           <button
                             onClick={() => {
                               const cartItem = cart.find(ci => ci.id === item.id);
-                              if (cartItem) {
-                                addToCart({...item});
+                              if (cartItem && cartItem.quantity > 1) {
+                                updateQuantity(item.id, cartItem.quantity - 1);
+                              } else {
+                                removeFromCart(item.id);
                               }
                             }}
                             className="text-emerald-600 hover:text-emerald-700"

@@ -1,0 +1,360 @@
+import { useState, useEffect } from 'react';
+import { Users, Shield, Trash2, Edit2, Plus, Mail, Phone, Calendar } from 'lucide-react';
+import { supabase, User } from '../../lib/supabase';
+import { useNotification } from '../../contexts/NotificationContext';
+
+export const UserManagement = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const { addNotification } = useNotification();
+
+  const [formData, setFormData] = useState({
+    email: '',
+    full_name: '',
+    phone: '',
+    password: '',
+    role: 'customer' as 'customer' | 'admin',
+  });
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      addNotification('Failed to fetch users', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      if (editingUser) {
+        // Update existing user
+        const { error } = await supabase
+          .from('users')
+          .update({
+            full_name: formData.full_name,
+            phone: formData.phone,
+            role: formData.role,
+          })
+          .eq('id', editingUser.id);
+
+        if (error) throw error;
+        addNotification('User updated successfully', 'success');
+      } else {
+        // Create new user
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: formData.email,
+          password: formData.password,
+          email_confirm: true,
+        });
+
+        if (authError) throw authError;
+
+        if (authData.user) {
+          const { error: profileError } = await supabase
+            .from('users')
+            .insert({
+              id: authData.user.id,
+              email: formData.email,
+              full_name: formData.full_name,
+              phone: formData.phone,
+              role: formData.role,
+            });
+
+          if (profileError) throw profileError;
+        }
+
+        addNotification('User created successfully', 'success');
+      }
+
+      resetForm();
+      fetchUsers();
+    } catch (error: any) {
+      addNotification(error.message || 'Operation failed', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (user: User) => {
+    setFormData({
+      email: user.email,
+      full_name: user.full_name,
+      phone: user.phone,
+      password: '',
+      role: user.role,
+    });
+    setEditingUser(user);
+    setShowAddUser(true);
+  };
+
+  const handleDelete = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+
+    try {
+      // First delete from auth
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+      if (authError) throw authError;
+
+      // The user profile will be automatically deleted due to CASCADE constraint
+      addNotification('User deleted successfully', 'success');
+      fetchUsers();
+    } catch (error: any) {
+      addNotification(error.message || 'Failed to delete user', 'error');
+    }
+  };
+
+  const toggleUserRole = async (userId: string, currentRole: 'customer' | 'admin') => {
+    const newRole = currentRole === 'admin' ? 'customer' : 'admin';
+    const roleText = newRole === 'admin' ? 'Admin' : 'Customer';
+
+    if (!confirm(`Are you sure you want to make this user a ${roleText}?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ role: newRole })
+        .eq('id', userId);
+
+      if (error) throw error;
+      addNotification(`User role updated to ${roleText}`, 'success');
+      fetchUsers();
+    } catch (error: any) {
+      addNotification(error.message || 'Failed to update role', 'error');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      email: '',
+      full_name: '',
+      phone: '',
+      password: '',
+      role: 'customer',
+    });
+    setEditingUser(null);
+    setShowAddUser(false);
+  };
+
+  if (loading && users.length === 0) {
+    return <div className="flex justify-center py-12">Loading users...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <Users className="text-red-600" size={24} />
+          <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
+        </div>
+        <button
+          onClick={() => setShowAddUser(true)}
+          className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+        >
+          <Plus size={20} />
+          <span>Add User</span>
+        </button>
+      </div>
+
+      {/* Add/Edit User Form */}
+      {showAddUser && (
+        <div className="bg-white rounded-xl shadow-sm p-6 border-2 border-red-200">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">
+            {editingUser ? 'Edit User' : 'Add New User'}
+          </h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="user@example.com"
+                  required
+                  disabled={!!editingUser}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  placeholder="+1 555-123-4567"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Role
+                </label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value as 'customer' | 'admin' })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                >
+                  <option value="customer">Customer</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              {!editingUser && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    placeholder="Enter password"
+                    required={!editingUser}
+                    minLength={6}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex space-x-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Saving...' : editingUser ? 'Update User' : 'Create User'}
+              </button>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Users List */}
+      {users.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm p-16 text-center">
+          <Users className="mx-auto text-gray-300 mb-4" size={64} />
+          <p className="text-xl text-gray-600">No users found</p>
+        </div>
+      ) : (
+        <div className="grid gap-4">
+          {users.map((user) => (
+            <div key={user.id} className="bg-white rounded-xl shadow-sm p-6 border">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <h3 className="text-lg font-bold text-gray-900">{user.full_name}</h3>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                      user.role === 'admin' 
+                        ? 'bg-red-100 text-red-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {user.role === 'admin' ? (
+                        <>
+                          <Shield size={12} className="mr-1" />
+                          Admin
+                        </>
+                      ) : (
+                        'Customer'
+                      )}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                      <Mail size={16} />
+                      <span>{user.email}</span>
+                    </div>
+                    {user.phone && (
+                      <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <Phone size={16} />
+                        <span>{user.phone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                      <Calendar size={16} />
+                      <span>Joined {new Date(user.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => toggleUserRole(user.id, user.role)}
+                    className={`p-2 rounded-lg font-medium text-sm transition-colors ${
+                      user.role === 'admin'
+                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                        : 'bg-red-100 text-red-700 hover:bg-red-200'
+                    }`}
+                    title={user.role === 'admin' ? 'Make Customer' : 'Make Admin'}
+                  >
+                    <Shield size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleEdit(user)}
+                    className="p-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                    title="Edit User"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(user.id)}
+                    className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete User"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};

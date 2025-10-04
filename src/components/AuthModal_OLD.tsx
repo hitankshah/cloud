@@ -72,59 +72,7 @@ const EmailVerificationView = ({ email, onClose, onResend }: EmailVerificationVi
   );
 };
 
-const PasswordResetView = ({ email, onClose, onBack }: PasswordResetViewProps) => {
-  return (
-    <div className="text-center">
-      <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6">
-        <Lock className="text-blue-600" size={32} />
-      </div>
-      
-      <h2 className="text-3xl font-bold text-gray-900 mb-2">Reset Password</h2>
-      <p className="text-gray-600 mb-6 leading-relaxed">
-        We've sent a password reset link to:<br />
-        <span className="font-semibold text-gray-900">{email}</span>
-      </p>
-
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <div className="flex items-start space-x-3">
-          <CheckCircle className="text-blue-600 flex-shrink-0 mt-0.5" size={18} />
-          <div className="text-sm text-blue-800">
-            <p className="font-semibold mb-1">Next Steps:</p>
-            <ul className="text-blue-700 space-y-1 text-left">
-              <li>• Check your email inbox</li>
-              <li>• Click the password reset link</li>
-              <li>• Create your new password</li>
-              <li>• Return here to sign in</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <button
-          onClick={onClose}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-        >
-          Got it, I'll check my email
-        </button>
-
-        <button
-          onClick={onBack}
-          className="w-full flex items-center justify-center space-x-2 text-gray-600 hover:text-gray-900 py-2 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          <span>Back to Sign In</span>
-        </button>
-
-        <div className="text-xs text-gray-500 leading-relaxed">
-          If you don't see the email, check your spam folder. The reset link is valid for 1 hour.
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
+  );\n};\n\nconst PasswordResetView = ({ email, onClose, onBack }: PasswordResetViewProps) => {\n  return (\n    <div className=\"text-center\">\n      <div className=\"inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-6\">\n        <Lock className=\"text-blue-600\" size={32} />\n      </div>\n      \n      <h2 className=\"text-3xl font-bold text-gray-900 mb-2\">Reset Password</h2>\n      <p className=\"text-gray-600 mb-6 leading-relaxed\">\n        We've sent a password reset link to:<br />\n        <span className=\"font-semibold text-gray-900\">{email}</span>\n      </p>\n\n      <div className=\"bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6\">\n        <div className=\"flex items-start space-x-3\">\n          <CheckCircle className=\"text-blue-600 flex-shrink-0 mt-0.5\" size={18} />\n          <div className=\"text-sm text-blue-800\">\n            <p className=\"font-semibold mb-1\">Next Steps:</p>\n            <ul className=\"text-blue-700 space-y-1 text-left\">\n              <li>• Check your email inbox</li>\n              <li>• Click the password reset link</li>\n              <li>• Create your new password</li>\n              <li>• Return here to sign in</li>\n            </ul>\n          </div>\n        </div>\n      </div>\n\n      <div className=\"space-y-4\">\n        <button\n          onClick={onClose}\n          className=\"w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors\"\n        >\n          Got it, I'll check my email\n        </button>\n\n        <button\n          onClick={onBack}\n          className=\"w-full flex items-center justify-center space-x-2 text-gray-600 hover:text-gray-900 py-2 transition-colors\"\n        >\n          <ArrowLeft size={16} />\n          <span>Back to Sign In</span>\n        </button>\n\n        <div className=\"text-xs text-gray-500 leading-relaxed\">\n          If you don't see the email, check your spam folder. The reset link is valid for 1 hour.\n        </div>\n      </div>\n    </div>\n  );\n};\n\nexport const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [isLogin, setIsLogin] = useState(true);
   const [isGuestForm, setIsGuestForm] = useState(false);
   const [showVerification, setShowVerification] = useState(false);
@@ -206,29 +154,6 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     }
   };
 
-  const handlePasswordReset = async () => {
-    if (!email) {
-      setError('Please enter your email address first');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setError('');
-      await resetPassword(email);
-      setShowPasswordReset(true);
-    } catch (error: any) {
-      setError(error.message || 'Failed to send reset email');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBackToLogin = () => {
-    setShowPasswordReset(false);
-    setError('');
-  };
-
   const toggleMode = () => {
     setIsLogin(!isLogin);
     resetForm();
@@ -249,12 +174,6 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
             email={email} 
             onClose={handleClose} 
             onResend={() => handleResendVerification()}
-          />
-        ) : showPasswordReset ? (
-          <PasswordResetView 
-            email={email} 
-            onClose={handleClose} 
-            onBack={handleBackToLogin}
           />
         ) : (
           <>
@@ -298,7 +217,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="+1 (555) 123-4567"
+                placeholder="e.g., +1 555-123-4567"
                 required
               />
             </div>
@@ -332,17 +251,6 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 required={!isGuestForm}
                 minLength={6}
               />
-              {isLogin && (
-                <div className="mt-2 text-right">
-                  <button
-                    type="button"
-                    onClick={handlePasswordReset}
-                    className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
@@ -369,7 +277,10 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
         {isGuestForm ? (
           <div className="mt-6 text-center">
             <button
-              onClick={() => setIsGuestForm(false)}
+              onClick={() => {
+                setIsGuestForm(false);
+                resetForm();
+              }}
               className="text-emerald-600 hover:text-emerald-700 font-medium"
             >
               ← Back to login

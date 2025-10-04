@@ -9,7 +9,7 @@ interface HeaderProps {
 }
 
 export const Header = ({ onAuthClick, onCartClick, onAdminClick }: HeaderProps) => {
-  const { user, userProfile, signOut } = useAuth();
+  const { user, userProfile, isGuest, signOut } = useAuth();
   const { getItemCount } = useCart();
   const itemCount = getItemCount();
 
@@ -18,7 +18,7 @@ export const Header = ({ onAuthClick, onCartClick, onAdminClick }: HeaderProps) 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
-            <div className="text-2xl font-bold text-emerald-600">CloudEats</div>
+            <div className="text-2xl font-bold text-emerald-600">Bhojanalay</div>
             <div className="ml-3 text-xs text-gray-500 hidden sm:block">Cloud Kitchen</div>
           </div>
 
@@ -33,7 +33,7 @@ export const Header = ({ onAuthClick, onCartClick, onAdminClick }: HeaderProps) 
               </button>
             )}
 
-            {user && (
+            {(user || isGuest) && (
               <button
                 onClick={onCartClick}
                 className="relative p-2 text-gray-700 hover:text-emerald-600 transition-colors"
@@ -59,6 +59,20 @@ export const Header = ({ onAuthClick, onCartClick, onAdminClick }: HeaderProps) 
                   title="Sign Out"
                 >
                   <LogOut size={20} />
+                </button>
+              </div>
+            ) : isGuest ? (
+              <div className="flex items-center space-x-3">
+                <div className="hidden sm:block text-right">
+                  <p className="text-sm font-medium text-gray-900">Guest User</p>
+                  <p className="text-xs text-gray-500">Continue shopping</p>
+                </div>
+                <button
+                  onClick={onAuthClick}
+                  className="text-sm text-gray-700 hover:text-emerald-600 transition-colors"
+                  title="Sign In"
+                >
+                  Sign In
                 </button>
               </div>
             ) : (

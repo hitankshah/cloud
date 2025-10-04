@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { Menu, X, Package, Utensils, LogOut } from 'lucide-react';
+import { Menu, X, Package, Utensils, Users, LogOut, Home } from 'lucide-react';
 import { MenuManagement } from './MenuManagement';
 import { OrderManagement } from './OrderManagement';
+import { UserManagement } from './UserManagement';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'users'>('orders');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { signOut, userProfile } = useAuth();
+
+  const handleBackToHome = () => {
+    window.location.href = '/';
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -43,6 +48,26 @@ export const AdminPanel = () => {
             <Utensils size={20} />
             <span className="font-medium">Menu</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+              activeTab === 'users'
+                ? 'bg-red-600 text-white'
+                : 'text-gray-300 hover:bg-gray-800'
+            }`}
+          >
+            <Users size={20} />
+            <span className="font-medium">Users</span>
+          </button>
+
+          <button
+            onClick={handleBackToHome}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-gray-300 hover:bg-gray-800 border-t border-gray-700 mt-4 pt-4"
+          >
+            <Home size={20} />
+            <span className="font-medium">Back to Website</span>
+          </button>
         </nav>
 
         <div className="mt-auto pt-6 border-t border-gray-700">
@@ -68,6 +93,7 @@ export const AdminPanel = () => {
 
         {activeTab === 'orders' && <OrderManagement />}
         {activeTab === 'menu' && <MenuManagement />}
+        {activeTab === 'users' && <UserManagement />}
       </main>
     </div>
   );
