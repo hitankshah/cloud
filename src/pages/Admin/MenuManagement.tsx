@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Save, X } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useNotification } from '../../contexts/NotificationContext';
 
