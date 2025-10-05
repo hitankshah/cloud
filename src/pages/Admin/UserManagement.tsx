@@ -24,16 +24,18 @@ export const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Use RPC function to get all users (admin only, bypasses RLS)
+      const { data, error } = await supabase.rpc('get_all_users');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+      
       setUsers(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
-      addNotification('Failed to fetch users', 'error');
+      addNotification(error.message || 'Failed to fetch users', 'error');
     } finally {
       setLoading(false);
     }
@@ -128,10 +130,11 @@ export const UserManagement = () => {
     if (!confirm(`Are you sure you want to make this user a ${roleText}?`)) return;
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ role: newRole })
-        .eq('id', userId);
+      // Use RPC function to update role safely
+      const { error } = await supabase.rpc('update_user_role', {
+        target_user_id: userId,
+        new_role: newRole
+      });
 
       if (error) throw error;
       addNotification(`User role updated to ${roleText}`, 'success');

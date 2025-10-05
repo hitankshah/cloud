@@ -10,9 +10,8 @@ import { Home } from './pages/Home';
 import { Checkout } from './pages/Checkout';
 import { AdminPanel } from './pages/Admin/AdminPanel';
 import { AdminLogin } from './pages/Admin/AdminLogin';
-import { AdminSetup } from './components/AdminSetup';
 
-type View = 'home' | 'checkout' | 'admin' | 'admin-login' | 'admin-setup';
+type View = 'home' | 'checkout' | 'admin' | 'admin-login';
 
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -29,8 +28,6 @@ function AppContent() {
       } else {
         setCurrentView('admin-login');
       }
-    } else if (path === '/admin-setup') {
-      setCurrentView('admin-setup');
     }
   }, [userProfile]);
 
@@ -72,10 +69,6 @@ function AppContent() {
   };
 
   // Admin routes
-  if (currentView === 'admin-setup') {
-    return <AdminSetup />;
-  }
-
   if (currentView === 'admin-login') {
     return <AdminLogin onSuccess={handleAdminLoginSuccess} />;
   }

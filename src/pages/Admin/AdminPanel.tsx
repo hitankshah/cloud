@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Menu, X, Package, Utensils, Users, LogOut, Home } from 'lucide-react';
+import { Menu, X, Package, Utensils, Users, LogOut, Home, LayoutDashboard } from 'lucide-react';
+import { Dashboard } from './Dashboard';
 import { MenuManagement } from './MenuManagement';
 import { OrderManagement } from './OrderManagement';
 import { UserManagement } from './UserManagement';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState<'orders' | 'menu' | 'users'>('orders');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'menu' | 'users'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { signOut, userProfile } = useAuth();
 
@@ -25,6 +26,18 @@ export const AdminPanel = () => {
         </div>
 
         <nav className="space-y-2">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+              activeTab === 'dashboard'
+                ? 'bg-red-600 text-white'
+                : 'text-gray-300 hover:bg-gray-800'
+            }`}
+          >
+            <LayoutDashboard size={20} />
+            <span className="font-medium">Dashboard</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('orders')}
             className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
@@ -91,6 +104,7 @@ export const AdminPanel = () => {
           <Menu size={24} />
         </button>
 
+        {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'orders' && <OrderManagement />}
         {activeTab === 'menu' && <MenuManagement />}
         {activeTab === 'users' && <UserManagement />}
