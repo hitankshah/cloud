@@ -1,8 +1,47 @@
+# Complete System Setup & Testing Guide
+
+## 🎯 **Quick Start - Create Your Admin User First!**
+
+**IMPORTANT**: Before you can use the admin panel, you need to create an admin user.
+
+### Method 1: Admin Setup Page (Easiest)
+1. Navigate to: `http://localhost:5173/admin-setup`
+2. Fill in the form with your details
+3. Click "Create Admin User"
+4. Go to `/admin` and log in with your credentials
+
+### Method 2: SQL Direct
+```sql
+-- After creating a user via signup, run this:
+UPDATE users SET role = 'admin' WHERE email = 'your-email@example.com';
+```
+
+## 🔧 **System Status**
+
+✅ Database tables created and migrated
+✅ 8 sample menu items pre-loaded
+✅ All RLS policies configured
+✅ Real-time subscriptions enabled
+✅ Image upload support added
+⚠️ **Admin user needs to be created** (see above)
+⚠️ **Storage bucket needs manual setup** (optional, see below)
+
+## 📸 **Optional: Enable Image Uploads**
+
+To allow admins to upload menu images:
+
+1. Go to Supabase Dashboard > Storage
+2. Create bucket named `menu-images`
+3. Make it public
+4. Add RLS policies (see setup_storage.sql file)
+
+OR manually run the storage setup SQL if you have permissions.
+
+---
+
 # Complete System Integration Test
 
-## 🎯 **End-to-End System Validation**
-
-This document provides a comprehensive checklist to verify all components work together properly from normal login to admin functionality.
+## ✅ **Pre-Test Setup Verification**
 
 ## ✅ **Pre-Test Setup Verification**
 
