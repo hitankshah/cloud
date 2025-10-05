@@ -64,12 +64,7 @@ function AppContent() {
   };
 
   const handleAdminLoginSuccess = () => {
-    // Check if user is actually admin after login
-    if (userProfile?.role === 'admin') {
-      setCurrentView('admin');
-    } else {
-      setCurrentView('admin-login');
-    }
+    setCurrentView('admin');
   };
 
   // Admin routes
