@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, CreditCard as Edit2, Trash2, Save, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, CreditCard as Edit2, Trash2, Save, X, Upload, Image as ImageIcon } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useNotification } from '../../contexts/NotificationContext';
 
@@ -8,6 +8,10 @@ export const MenuManagement = () => {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { addNotification } = useNotification();
 
   const [formData, setFormData] = useState({
@@ -40,16 +44,45 @@ export const MenuManagement = () => {
     }
   };
 
+  const uploadImage = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('menu-images')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('menu-images')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      let imageUrl = formData.image_url;
+
+      if (imageFile) {
+        setUploading(true);
+        imageUrl = await uploadImage(imageFile);
+        setUploading(false);
+      }
+
       const data = {
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price),
-        image_url: formData.image_url,
+        image_url: imageUrl,
         category: formData.category,
         is_vegetarian: formData.is_vegetarian,
         is_available: true,
@@ -78,6 +111,28 @@ export const MenuManagement = () => {
       addNotification(error.message || 'Operation failed', 'error');
     } finally {
       setLoading(false);
+      setUploading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5242880) {
+        addNotification('Image size must be less than 5MB', 'error');
+        return;
+      }
+      if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+        addNotification('Only JPG, PNG, and WebP images are allowed', 'error');
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      setFormData({...formData, image_url: ''});
     }
   };
 
@@ -90,6 +145,7 @@ export const MenuManagement = () => {
       category: item.category,
       is_vegetarian: item.is_vegetarian,
     });
+    setImagePreview(item.image_url);
     setEditingId(item.id);
     setShowAddForm(true);
   };
@@ -135,8 +191,13 @@ export const MenuManagement = () => {
       category: 'morning',
       is_vegetarian: false,
     });
+    setImageFile(null);
+    setImagePreview('');
     setEditingId(null);
     setShowAddForm(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const groupedItems = {
@@ -198,14 +259,60 @@ export const MenuManagement = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Image URL</label>
-              <input
-                type="url"
-                value={formData.image_url}
-                onChange={(e) => setFormData({...formData, image_url: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                placeholder="https://images.pexels.com/..."
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Image</label>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  >
+                    <Upload size={18} />
+                    <span>Upload Image</span>
+                  </button>
+                  <span className="text-sm text-gray-500">or</span>
+                  <input
+                    type="url"
+                    value={formData.image_url}
+                    onChange={(e) => {
+                      setFormData({...formData, image_url: e.target.value});
+                      setImagePreview(e.target.value);
+                      setImageFile(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                    placeholder="Or paste image URL"
+                  />
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                {imagePreview && (
+                  <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImagePreview('');
+                        setImageFile(null);
+                        setFormData({...formData, image_url: ''});
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                      className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">Max 5MB. Supported: JPG, PNG, WebP</p>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -234,10 +341,10 @@ export const MenuManagement = () => {
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || uploading}
               className="w-full bg-emerald-600 text-white py-3 rounded-lg font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Saving...' : editingId ? 'Update Item' : 'Add Item'}
+              {uploading ? 'Uploading Image...' : loading ? 'Saving...' : editingId ? 'Update Item' : 'Add Item'}
             </button>
           </form>
         </div>
@@ -251,15 +358,27 @@ export const MenuManagement = () => {
           ) : (
             <div className="space-y-4">
               {items.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">{item.name}</h4>
-                    <p className="text-sm text-gray-600">{item.description}</p>
-                    <div className="flex items-center space-x-4 mt-2">
-                      <span className="text-emerald-600 font-bold">${item.price.toFixed(2)}</span>
-                      {item.is_vegetarian && (
-                        <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded">Veg</span>
-                      )}
+                <div key={item.id} className="flex items-start justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex space-x-4 flex-1">
+                    {item.image_url && (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="w-20 h-20 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100';
+                        }}
+                      />
+                    )}
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900">{item.name}</h4>
+                      <p className="text-sm text-gray-600">{item.description}</p>
+                      <div className="flex items-center space-x-4 mt-2">
+                        <span className="text-emerald-600 font-bold">${item.price.toFixed(2)}</span>
+                        {item.is_vegetarian && (
+                          <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded">Veg</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">

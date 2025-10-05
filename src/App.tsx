@@ -10,8 +10,9 @@ import { Home } from './pages/Home';
 import { Checkout } from './pages/Checkout';
 import { AdminPanel } from './pages/Admin/AdminPanel';
 import { AdminLogin } from './pages/Admin/AdminLogin';
+import { AdminSetup } from './components/AdminSetup';
 
-type View = 'home' | 'checkout' | 'admin' | 'admin-login';
+type View = 'home' | 'checkout' | 'admin' | 'admin-login' | 'admin-setup';
 
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -21,12 +22,15 @@ function AppContent() {
 
   // Check if current URL is admin route
   useEffect(() => {
-    if (window.location.pathname === '/admin') {
+    const path = window.location.pathname;
+    if (path === '/admin') {
       if (userProfile?.role === 'admin') {
         setCurrentView('admin');
       } else {
         setCurrentView('admin-login');
       }
+    } else if (path === '/admin-setup') {
+      setCurrentView('admin-setup');
     }
   }, [userProfile]);
 
@@ -64,15 +68,14 @@ function AppContent() {
   };
 
   const handleAdminLoginSuccess = () => {
-    // Check if user is actually admin after login
-    if (userProfile?.role === 'admin') {
-      setCurrentView('admin');
-    } else {
-      setCurrentView('admin-login');
-    }
+    setCurrentView('admin');
   };
 
   // Admin routes
+  if (currentView === 'admin-setup') {
+    return <AdminSetup />;
+  }
+
   if (currentView === 'admin-login') {
     return <AdminLogin onSuccess={handleAdminLoginSuccess} />;
   }
