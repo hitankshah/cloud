@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, CreditCard as Edit2, Trash2, Save, X } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, X } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useNotification } from '../../contexts/NotificationContext';
 
@@ -21,6 +21,19 @@ export const MenuManagement = () => {
 
   useEffect(() => {
     fetchMenuItems();
+    
+    // Set up real-time subscription for menu items
+    const subscription = supabase
+      .channel('menu_items')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, (payload) => {
+        console.log('Menu item change detected:', payload);
+        fetchMenuItems(); // Refresh menu items when changes occur
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchMenuItems = async () => {

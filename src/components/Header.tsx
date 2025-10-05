@@ -9,7 +9,7 @@ interface HeaderProps {
 }
 
 export const Header = ({ onAuthClick, onCartClick, onAdminClick }: HeaderProps) => {
-  const { user, userProfile, signOut } = useAuth();
+  const { user, userProfile, signOut, isAdmin } = useAuth();
   const { getItemCount } = useCart();
   const itemCount = getItemCount();
 
@@ -23,7 +23,7 @@ export const Header = ({ onAuthClick, onCartClick, onAdminClick }: HeaderProps) 
           </div>
 
           <div className="flex items-center space-x-4">
-            {userProfile?.role === 'admin' && (
+            {isAdmin() && (
               <button
                 onClick={onAdminClick}
                 className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors"
