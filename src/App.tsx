@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { SecurityProvider } from './lib/security';
 import { AuthModal } from './components/AuthModal';
 import { Header } from './components/Header';
 import { CartDrawer } from './components/CartDrawer';
@@ -128,13 +129,15 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <NotificationProvider>
-          <AppContent />
-        </NotificationProvider>
-      </CartProvider>
-    </AuthProvider>
+    <SecurityProvider>
+      <AuthProvider>
+        <CartProvider>
+          <NotificationProvider>
+            <AppContent />
+          </NotificationProvider>
+        </CartProvider>
+      </AuthProvider>
+    </SecurityProvider>
   );
 }
 

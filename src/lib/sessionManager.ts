@@ -1,4 +1,4 @@
-// Session Management Utilities
+  // Session Management Utilities
 import { supabase } from './supabase';
 
 /**

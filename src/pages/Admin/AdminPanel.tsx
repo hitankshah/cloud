@@ -5,11 +5,13 @@ import { MenuManagement } from './MenuManagement';
 import { OrderManagement } from './OrderManagement';
 import { UserManagement } from './UserManagement';
 import { useAuth } from '../../contexts/AuthContext';
+import { AdminRouteGuard, useAdminPermissions } from '../../components/AdminRouteGuard';
 
 export const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'menu' | 'users'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { signOut, userProfile } = useAuth();
+  const { hasPermission } = useAdminPermissions();
 
   const handleBackToHome = () => {
     window.location.href = '/';
@@ -62,17 +64,20 @@ export const AdminPanel = () => {
             <span className="font-medium">Menu</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-              activeTab === 'users'
-                ? 'bg-red-600 text-white'
-                : 'text-gray-300 hover:bg-gray-800'
-            }`}
-          >
-            <Users size={20} />
-            <span className="font-medium">Users</span>
-          </button>
+          {/* Users tab - only show for superadmin */}
+          {hasPermission('superadmin') && (
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                activeTab === 'users'
+                  ? 'bg-red-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-800'
+              }`}
+            >
+              <Users size={20} />
+              <span className="font-medium">Users</span>
+            </button>
+          )}
 
           <button
             onClick={handleBackToHome}
@@ -113,3 +118,12 @@ export const AdminPanel = () => {
     </div>
   );
 };
+
+// Export the protected version as default
+export default function ProtectedAdminPanel() {
+  return (
+    <AdminRouteGuard requiredRole="admin">
+      <AdminPanel />
+    </AdminRouteGuard>
+  );
+}

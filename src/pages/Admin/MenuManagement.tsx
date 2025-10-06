@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Plus, CreditCard as Edit2, Trash2, X, Upload } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useNotification } from '../../contexts/NotificationContext';
+import { AdminRouteGuard } from '../../components/AdminRouteGuard';
 
 export const MenuManagement = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -436,3 +437,12 @@ export const MenuManagement = () => {
     </div>
   );
 };
+
+// Wrap with admin protection
+export default function ProtectedMenuManagement() {
+  return (
+    <AdminRouteGuard requiredRole="admin">
+      <MenuManagement />
+    </AdminRouteGuard>
+  );
+}
