@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, CreditCard as Edit2, Trash2, Save, X, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, X, Upload } from 'lucide-react';
 import { supabase, MenuItem } from '../../lib/supabase';
 import { useNotification } from '../../contexts/NotificationContext';
 
@@ -45,24 +45,46 @@ export const MenuManagement = () => {
   };
 
   const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('menu-images')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+      // First check if bucket exists
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const bucketExists = buckets?.some(bucket => bucket.name === 'menu-images');
 
-    if (uploadError) throw uploadError;
+      if (!bucketExists) {
+        throw new Error('Storage bucket "menu-images" not found. Please create it in Supabase Dashboard.');
+      }
 
-    const { data } = supabase.storage
-      .from('menu-images')
-      .getPublicUrl(filePath);
+      // Upload the file
+      const { error: uploadError } = await supabase.storage
+        .from('menu-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-    return data.publicUrl;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('menu-images')
+        .getPublicUrl(filePath);
+
+      if (!data || !data.publicUrl) {
+        throw new Error('Failed to get public URL for uploaded image');
+      }
+
+      return data.publicUrl;
+    } catch (error: any) {
+      console.error('Image upload error:', error);
+      throw error;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

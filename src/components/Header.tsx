@@ -1,4 +1,4 @@
-import { ShoppingCart, User, LogOut, Shield } from 'lucide-react';
+import { ShoppingCart, User, Shield, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 
@@ -6,10 +6,11 @@ interface HeaderProps {
   onAuthClick: () => void;
   onCartClick: () => void;
   onAdminClick: () => void;
+  onProfileClick: () => void;
 }
 
-export const Header = ({ onAuthClick, onCartClick, onAdminClick }: HeaderProps) => {
-  const { user, userProfile, isGuest, signOut } = useAuth();
+export const Header = ({ onAuthClick, onCartClick, onAdminClick, onProfileClick }: HeaderProps) => {
+  const { user, userProfile, isGuest } = useAuth();
   const { getItemCount } = useCart();
   const itemCount = getItemCount();
 
@@ -48,19 +49,21 @@ export const Header = ({ onAuthClick, onCartClick, onAdminClick }: HeaderProps) 
             )}
 
             {user ? (
-              <div className="flex items-center space-x-3">
-                <div className="hidden sm:block text-right">
-                  <p className="text-sm font-medium text-gray-900">{userProfile?.full_name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{userProfile?.role}</p>
+              <button
+                onClick={onProfileClick}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  <div className="bg-emerald-100 p-2 rounded-full">
+                    <User size={20} className="text-emerald-600" />
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <p className="text-sm font-medium text-gray-900">{userProfile?.full_name || 'User'}</p>
+                    <p className="text-xs text-gray-500 capitalize">{userProfile?.role}</p>
+                  </div>
+                  <ChevronDown size={16} className="text-gray-500" />
                 </div>
-                <button
-                  onClick={signOut}
-                  className="p-2 text-gray-700 hover:text-red-600 transition-colors"
-                  title="Sign Out"
-                >
-                  <LogOut size={20} />
-                </button>
-              </div>
+              </button>
             ) : isGuest ? (
               <div className="flex items-center space-x-3">
                 <div className="hidden sm:block text-right">

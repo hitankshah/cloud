@@ -6,18 +6,27 @@ import { AuthModal } from './components/AuthModal';
 import { Header } from './components/Header';
 import { CartDrawer } from './components/CartDrawer';
 import { NotificationToast } from './components/NotificationToast';
+import { UserProfile } from './components/UserProfile';
 import { Home } from './pages/Home';
 import { Checkout } from './pages/Checkout';
 import { AdminPanel } from './pages/Admin/AdminPanel';
 import { AdminLogin } from './pages/Admin/AdminLogin';
+import { setupAutoRefresh } from './lib/sessionManager';
 
 type View = 'home' | 'checkout' | 'admin' | 'admin-login';
 
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [currentView, setCurrentView] = useState<View>('home');
   const { loading, userProfile } = useAuth();
+
+  // Setup automatic session refresh
+  useEffect(() => {
+    const cleanup = setupAutoRefresh();
+    return cleanup;
+  }, []);
 
   // Check if current URL is admin route
   useEffect(() => {
@@ -83,6 +92,7 @@ function AppContent() {
         onAuthClick={() => setShowAuthModal(true)}
         onCartClick={() => setShowCart(true)}
         onAdminClick={handleAdminClick}
+        onProfileClick={() => setShowProfile(true)}
       />
 
       {currentView === 'home' && <Home />}
@@ -104,6 +114,10 @@ function AppContent() {
         onClose={() => setShowCart(false)}
         onCheckout={handleCheckout}
       />
+
+      {showProfile && (
+        <UserProfile onClose={() => setShowProfile(false)} />
+      )}
 
       <NotificationToast />
     </div>

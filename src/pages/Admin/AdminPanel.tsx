@@ -85,7 +85,8 @@ export const AdminPanel = () => {
 
         <div className="mt-auto pt-6 border-t border-gray-700">
           <p className="text-sm text-gray-400 mb-2">Logged in as:</p>
-          <p className="font-medium mb-4">{userProfile?.full_name}</p>
+          <p className="font-medium text-sm truncate mb-1">{userProfile?.email}</p>
+          <p className="text-xs text-gray-500 mb-4">Role: {userProfile?.role}</p>
           <button
             onClick={signOut}
             className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"

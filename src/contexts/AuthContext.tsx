@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { supabase, User as UserProfile } from '../lib/supabase';
-import { User as SupabaseUser } from '@supabase/supabase-js';
+import { User as SupabaseUser, AuthChangeEvent, Session } from '@supabase/supabase-js';
 
 export interface GuestInfo {
   fullName: string;
@@ -39,231 +39,174 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [guestInfo, setGuestInfo] = useState<GuestInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  
+  // Refs for managing state
+  const isMountedRef = useRef(true);
+  const profileFetchInFlight = useRef(false);
+  const lastFetchedUserId = useRef<string | null>(null);
 
+  // Cleanup on unmount
   useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-        setIsGuest(false);
-        setGuestInfo(null);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // Listen to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.id);
-      
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-        setIsGuest(false);
-        setGuestInfo(null);
-      } else {
-        setUserProfile(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
+  // Profile fetching function
   const fetchProfile = async (userId: string) => {
-    console.log('Fetching profile for user:', userId);
-    try {
-      // Get auth user for metadata
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) {
-        console.error('No authenticated user found');
-        setLoading(false);
-        return;
-      }
+    if (!userId || profileFetchInFlight.current || !isMountedRef.current) {
+      return;
+    }
 
-      // Try to fetch from users table
-      const { data } = await supabase
+    // Prevent duplicate fetches for the same user
+    if (lastFetchedUserId.current === userId) {
+      return;
+    }
+
+    profileFetchInFlight.current = true;
+    lastFetchedUserId.current = userId;
+
+    try {
+      const { data: profile, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
 
-      if (data) {
-        console.log('Profile found in database:', data);
-        setUserProfile(data as UserProfile);
-        setLoading(false);
+      if (error) {
+        console.error('Profile fetch error:', error);
         return;
       }
 
-      console.log('Profile not found in database, auto-creating...');
-      
-      // Profile doesn't exist - create it
-      const newProfile = {
-        id: userId,
-        email: authUser.email || '',
-        full_name: authUser.user_metadata?.full_name || 'User',
-        phone: authUser.user_metadata?.phone || '',
-        role: authUser.user_metadata?.role || 'customer'
-      };
-
-      // Try to insert the profile
-      const { data: insertedData, error: insertError } = await supabase
-        .from('users')
-        .insert(newProfile)
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error('Failed to create profile in database:', insertError);
-        console.log('Using metadata profile (database insert failed due to RLS)');
-        
-        // Set profile from metadata even if DB insert fails
-        setUserProfile({
-          ...newProfile,
-          created_at: authUser.created_at || new Date().toISOString()
-        });
-      } else {
-        console.log('Profile created successfully:', insertedData);
-        setUserProfile(insertedData);
+      if (profile && isMountedRef.current) {
+        setUserProfile(profile as UserProfile);
+      } else if (isMountedRef.current) {
+        // Create fallback profile if not found
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          const fallbackProfile: UserProfile = {
+            id: authUser.id,
+            email: authUser.email || '',
+            full_name: authUser.user_metadata?.full_name || 'User',
+            phone: authUser.user_metadata?.phone || '',
+            role: (authUser.user_metadata?.role as UserProfile['role']) || 'customer',
+            created_at: authUser.created_at || new Date().toISOString()
+          };
+          setUserProfile(fallbackProfile);
+        }
       }
-      
     } catch (error) {
-      console.error('Unexpected error fetching profile:', error);
-      
-      // Final fallback to auth metadata
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        console.log('Using fallback metadata profile');
-        setUserProfile({
-          id: authUser.id,
-          email: authUser.email || '',
-          full_name: authUser.user_metadata?.full_name || 'User',
-          phone: authUser.user_metadata?.phone || '',
-          role: authUser.user_metadata?.role || 'customer',
-          created_at: authUser.created_at || new Date().toISOString()
-        });
+      console.error('Profile fetch error:', error);
+    } finally {
+      profileFetchInFlight.current = false;
+      if (isMountedRef.current) {
+        setLoading(false);
       }
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const handleAuthChange = async (event: AuthChangeEvent, session: Session | null) => {
+      if (!mounted) return;
+      
+      console.log(`🔐 Auth event: ${event}`, session?.user?.email || 'no user');
+      
+      if (session?.user) {
+        setUser(session.user);
+        setIsGuest(false);
+        setGuestInfo(null);
+        await fetchProfile(session.user.id);
+      } else if (mounted) {
+        setUser(null);
+        setUserProfile(null);
+        setGuestInfo(null);
+        setIsGuest(false);
+        setLoading(false);
+        lastFetchedUserId.current = null;
+      }
+    };
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthChange);
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session }}) => {
+      if (mounted) {
+        handleAuthChange(session ? 'SIGNED_IN' : 'SIGNED_OUT', session);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const signUp = async (email: string, password: string, fullName: string, phone: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            phone
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: data.user.id,
+              full_name: fullName,
+              email,
+              phone,
+              role: 'customer'
+            }
+          ]);
+
+        if (profileError) {
+          console.warn('Profile creation warning:', profileError);
+        }
+      }
+    } catch (error) {
+      console.error('Error signing up:', error);
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string, phone: string) => {
-    const { data, error } = await supabase.auth.signUp({ 
-      email, 
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          phone: phone,
-          role: 'customer'
-        }
-      }
-    });
-
-    if (error) {
-      const status = (error as any).status;
-      if (status === 429) throw new Error('Too many requests. Please try again later.');
-      if (status === 401) throw new Error('Unauthorized. Please check your credentials.');
-      throw error;
-    }
-
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          phone,
-          role: 'customer',
-        });
-
-      if (profileError) {
-        console.warn('Profile creation error (may already exist):', profileError);
-        // Don't throw - the user is created in auth, profile can be created later
-      }
-    }
-  };
-
   const signIn = async (email: string, password: string) => {
-    console.log('Attempting sign in for:', email);
-    
-    const { data, error } = await supabase.auth.signInWithPassword({ 
-      email, 
-      password 
-    });
-    
-    if (error) {
-      console.error('Sign in error:', error);
-      const status = (error as any).status;
-      if (status === 429) throw new Error('Too many attempts. Please wait a moment and try again.');
-      if (status === 400 || status === 401) throw new Error('Invalid email or password.');
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error signing in:', error);
+      setLoading(false);
       throw error;
     }
-    
-    console.log('Sign in successful:', data.user?.id);
-    
-    // The onAuthStateChange listener will handle profile fetching
-    return;
-  };
-
-  const createAdminUser = async (email: string, password: string, fullName: string) => {
-    const { data, error } = await supabase.auth.signUp({ 
-      email, 
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: 'admin'
-        }
-      }
-    });
-
-    if (error) throw error;
-
-    if (data.user) {
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          phone: '',
-          role: 'admin',
-        });
-
-      if (profileError) {
-        console.warn('Profile creation error (user may already exist):', profileError);
-      }
-    }
-    return data;
-  };
-
-  const resendVerification = async (email: string) => {
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: email
-    });
-    
-    if (error) throw error;
-  };
-
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
-    });
-    
-    if (error) throw error;
+    // Loading will be set to false by auth state change handler
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    setIsGuest(false);
-    setGuestInfo(null);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      lastFetchedUserId.current = null;
+    } catch (error) {
+      console.error('Error signing out:', error);
+      throw error;
+    }
   };
 
   const continueAsGuest = (info: GuestInfo) => {
@@ -274,22 +217,92 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
-  return (
-    <AuthContext.Provider value={{ 
-      user, 
-      userProfile, 
-      guestInfo, 
-      loading, 
-      isGuest, 
-      signUp, 
-      signIn, 
-      signOut, 
-      continueAsGuest, 
-      createAdminUser, 
-      resendVerification, 
-      resetPassword 
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const createAdminUser = async (email: string, password: string, fullName: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            role: 'admin'
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: data.user.id,
+              full_name: fullName,
+              email,
+              role: 'admin'
+            }
+          ]);
+
+        if (profileError) {
+          console.warn('Admin profile creation warning:', profileError);
+        }
+        return data;
+      }
+    } catch (error) {
+      console.error('Error creating admin:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendVerification = async (email: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error resending verification:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const value = {
+    user,
+    userProfile,
+    guestInfo,
+    loading,
+    isGuest,
+    signUp,
+    signIn,
+    signOut,
+    continueAsGuest,
+    createAdminUser,
+    resendVerification,
+    resetPassword
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

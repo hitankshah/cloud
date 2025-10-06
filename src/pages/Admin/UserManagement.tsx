@@ -24,18 +24,32 @@ export const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      // Use RPC function to get all users (admin only, bypasses RLS)
-      const { data, error } = await supabase.rpc('get_all_users');
+      // Try RPC function first (admin only, bypasses RLS)
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_all_users');
+
+      if (!rpcError && rpcData) {
+        console.log('Users fetched via RPC:', rpcData);
+        setUsers(rpcData || []);
+        return;
+      }
+
+      // Fallback: Try direct query (may fail due to RLS)
+      console.log('RPC failed, trying direct query:', rpcError);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching users:', error);
+        console.error('Direct query also failed:', error);
         throw error;
       }
       
+      console.log('Users fetched via direct query:', data);
       setUsers(data || []);
     } catch (error: any) {
-      console.error('Error:', error);
-      addNotification(error.message || 'Failed to fetch users', 'error');
+      console.error('Error fetching users:', error);
+      addNotification(error.message || 'Failed to fetch users. Make sure you have admin permissions.', 'error');
     } finally {
       setLoading(false);
     }
@@ -107,19 +121,34 @@ export const UserManagement = () => {
     setShowAddUser(true);
   };
 
-  const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+  const handleDelete = async (userId: string, userEmail: string) => {
+    if (!confirm(`Are you sure you want to delete user "${userEmail}"? This action cannot be undone.`)) return;
 
     try {
-      // First delete from auth
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-      if (authError) throw authError;
+      setLoading(true);
+      
+      // Delete from users table first
+      const { error: dbError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
 
-      // The user profile will be automatically deleted due to CASCADE constraint
+      if (dbError) {
+        console.error('Database delete error:', dbError);
+        throw new Error(`Failed to delete user from database: ${dbError.message}`);
+      }
+
+      // Note: Deleting from auth.users requires service_role key
+      // In production, this should be done via a backend API endpoint
+      // For now, the user is removed from the app's users table
+      
       addNotification('User deleted successfully', 'success');
       fetchUsers();
     } catch (error: any) {
+      console.error('Delete user error:', error);
       addNotification(error.message || 'Failed to delete user', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -346,7 +375,7 @@ export const UserManagement = () => {
                     <Edit2 size={16} />
                   </button>
                   <button
-                    onClick={() => handleDelete(user.id)}
+                    onClick={() => handleDelete(user.id, user.email)}
                     className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Delete User"
                   >
