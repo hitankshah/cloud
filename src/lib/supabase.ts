@@ -9,7 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // Storage configuration
 export const STORAGE_CONFIG = {
-  bucketName: import.meta.env.VITE_SUPABASE_BUCKET_NAME || 'restaurant-images',
+  bucketName: 'restaurant-images', // Hardcoded to match the storage bucket creation script
   storageUrl: import.meta.env.VITE_SUPABASE_STORAGE_URL,
   maxFileSize: parseInt(import.meta.env.VITE_MAX_FILE_SIZE) || 5 * 1024 * 1024, // 5MB
   allowedTypes: (import.meta.env.VITE_ALLOWED_FILE_TYPES || 'image/jpeg,image/jpg,image/png,image/webp').split(',')

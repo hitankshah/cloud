@@ -4,11 +4,11 @@
 -- Run this in Supabase Dashboard → SQL Editor
 -- This creates the storage bucket and sets up access policies
 
--- Create the menu-images bucket if it doesn't exist
+-- Create the restaurant-images bucket if it doesn't exist
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
-  'menu-images',
-  'menu-images',
+  'restaurant-images',
+  'restaurant-images',
   true,  -- Public bucket so images are accessible
   5242880,  -- 5MB limit
   ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
@@ -27,13 +27,13 @@ DROP POLICY IF EXISTS "Admin can delete images" ON storage.objects;
 -- Policy: Anyone can view images (public read access)
 CREATE POLICY "Public Access"
 ON storage.objects FOR SELECT
-USING (bucket_id = 'menu-images');
+USING (bucket_id = 'restaurant-images');
 
 -- Policy: Admins can upload images
 CREATE POLICY "Admin can upload images"
 ON storage.objects FOR INSERT
 WITH CHECK (
-  bucket_id = 'menu-images'
+  bucket_id = 'restaurant-images'
   AND (
     EXISTS (
       SELECT 1 FROM users
@@ -47,7 +47,7 @@ WITH CHECK (
 CREATE POLICY "Admin can update images"
 ON storage.objects FOR UPDATE
 USING (
-  bucket_id = 'menu-images'
+  bucket_id = 'restaurant-images'
   AND (
     EXISTS (
       SELECT 1 FROM users
@@ -61,7 +61,7 @@ USING (
 CREATE POLICY "Admin can delete images"
 ON storage.objects FOR DELETE
 USING (
-  bucket_id = 'menu-images'
+  bucket_id = 'restaurant-images'
   AND (
     EXISTS (
       SELECT 1 FROM users
@@ -79,4 +79,4 @@ SELECT
   file_size_limit,
   allowed_mime_types
 FROM storage.buckets
-WHERE id = 'menu-images';
+WHERE id = 'restaurant-images';
