@@ -10,18 +10,17 @@ import { NotificationToast } from './components/NotificationToast';
 import { UserProfile } from './components/UserProfile';
 import { Home } from './pages/Home';
 import { Checkout } from './pages/Checkout';
-import { AdminPanel } from './pages/Admin/AdminPanel';
-import { AdminLogin } from './pages/Admin/AdminLogin';
+// Admin panel removed - admin app handled separately
 import { setupAutoRefresh } from './lib/sessionManager';
 
-type View = 'home' | 'checkout' | 'admin' | 'admin-login';
+type View = 'home' | 'checkout';
 
 function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [currentView, setCurrentView] = useState<View>('home');
-  const { loading, userProfile } = useAuth();
+  const { loading } = useAuth();
 
   // Setup automatic session refresh
   useEffect(() => {
@@ -29,23 +28,9 @@ function AppContent() {
     return cleanup;
   }, []);
 
-  // Check if current URL is admin route
-  useEffect(() => {
-    const path = window.location.pathname;
-    if (path === '/admin') {
-      if (userProfile?.role === 'admin') {
-        setCurrentView('admin');
-      } else {
-        setCurrentView('admin-login');
-      }
-    }
-  }, [userProfile]);
-
   // Update URL when view changes
   useEffect(() => {
-    if (currentView === 'admin') {
-      window.history.pushState(null, '', '/admin');
-    } else if (currentView === 'home') {
+    if (currentView === 'home') {
       window.history.pushState(null, '', '/');
     }
   }, [currentView]);
@@ -66,33 +51,14 @@ function AppContent() {
     setCurrentView('home');
   };
 
-  const handleAdminClick = () => {
-    if (userProfile?.role === 'admin') {
-      setCurrentView('admin');
-    } else {
-      setCurrentView('admin-login');
-    }
-  };
 
-  const handleAdminLoginSuccess = () => {
-    setCurrentView('admin');
-  };
-
-  // Admin routes
-  if (currentView === 'admin-login') {
-    return <AdminLogin onSuccess={handleAdminLoginSuccess} />;
-  }
-
-  if (currentView === 'admin' && userProfile?.role === 'admin') {
-    return <AdminPanel />;
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header
         onAuthClick={() => setShowAuthModal(true)}
         onCartClick={() => setShowCart(true)}
-        onAdminClick={handleAdminClick}
+        
         onProfileClick={() => setShowProfile(true)}
       />
 

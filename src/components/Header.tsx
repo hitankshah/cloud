@@ -1,15 +1,14 @@
-import { ShoppingCart, User, Shield, ChevronDown } from 'lucide-react';
+import { ShoppingCart, User, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
 
 interface HeaderProps {
   onAuthClick: () => void;
   onCartClick: () => void;
-  onAdminClick: () => void;
   onProfileClick: () => void;
 }
 
-export const Header = ({ onAuthClick, onCartClick, onAdminClick, onProfileClick }: HeaderProps) => {
+export const Header = ({ onAuthClick, onCartClick, onProfileClick }: HeaderProps) => {
   const { user, userProfile, isGuest } = useAuth();
   const { getItemCount } = useCart();
   const itemCount = getItemCount();
@@ -24,15 +23,7 @@ export const Header = ({ onAuthClick, onCartClick, onAdminClick, onProfileClick 
           </div>
 
           <div className="flex items-center space-x-4">
-            {userProfile?.role === 'admin' && (
-              <button
-                onClick={onAdminClick}
-                className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors"
-              >
-                <Shield size={18} />
-                <span>Admin Panel</span>
-              </button>
-            )}
+            {/* Admin button removed from cloud app - admin is managed separately */}
 
             {(user || isGuest) && (
               <button

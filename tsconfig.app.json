@@ -15,8 +15,7 @@
     "isolatedModules": true,
     "resolveJsonModule": true,
     "noEmit": true,
-    "useDefineForClassFields": true,
-    "ignoreDeprecations": "6.0",
+  "useDefineForClassFields": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]

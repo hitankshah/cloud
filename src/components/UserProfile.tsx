@@ -287,8 +287,13 @@ export const UserProfile = ({ onClose }: UserProfileProps) => {
         <div className="border-t border-gray-200 p-6 bg-gray-50 rounded-b-2xl">
           <button
             onClick={async () => {
-              await signOut();
-              onClose();
+              try {
+                await signOut();
+                // Force page reload to ensure clean state
+                window.location.href = '/';
+              } catch (error) {
+                console.error('Sign out error:', error);
+              }
             }}
             className="w-full flex items-center justify-center space-x-2 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
           >
