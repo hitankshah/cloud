@@ -1,6 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Minus, Leaf, Clock } from 'lucide-react';
-import { supabase, MenuItem } from '../lib/supabase';
+import {
+  supabase,
+  MenuItem,
+  supabaseConfigurationError,
+  SUPABASE_CONFIG_ERROR
+} from '../lib/supabase';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -13,12 +18,11 @@ export const Home = () => {
   const { } = useAuth();
   const { addNotification } = useNotification();
 
-  useEffect(() => {
-    fetchMenuItems();
-  }, []);
-
-  const fetchMenuItems = async () => {
+  const fetchMenuItems = useCallback(async () => {
     try {
+      if (!supabase) {
+        throw new Error(supabaseConfigurationError || SUPABASE_CONFIG_ERROR);
+      }
       const { data, error } = await supabase
         .from('menu_items')
         .select('*')
@@ -33,9 +37,38 @@ export const Home = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addNotification]);
 
-  const filteredItems = menuItems.filter(item => item.category === selectedCategory);
+  useEffect(() => {
+    if (!supabase) {
+      console.error(supabaseConfigurationError || SUPABASE_CONFIG_ERROR);
+      setLoading(false);
+      addNotification('Supabase is not configured. Menu data cannot be loaded.', 'error');
+      return;
+    }
+    fetchMenuItems();
+  }, [fetchMenuItems]);
+
+  useEffect(() => {
+    if (!supabase) {
+      return;
+    }
+
+    const channel = supabase
+      .channel('public:menu_items')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, () => {
+        fetchMenuItems();
+      })
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [fetchMenuItems]);
+
+  const filteredItems = menuItems.filter(item => {
+    return item.category === selectedCategory || item.category === 'all';
+  });
 
   const getItemQuantity = (itemId: string) => {
     const cartItem = cart.find(item => item.id === itemId);

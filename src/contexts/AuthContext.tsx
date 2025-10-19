@@ -1,5 +1,10 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase, User as UserProfile } from '../lib/supabase';
+import {
+  supabase,
+  User as UserProfile,
+  SUPABASE_CONFIG_ERROR,
+  supabaseConfigurationError
+} from '../lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { signUpSchema, signInSchema, guestInfoSchema } from '../lib/validations';
 import { sanitizeInput, loginRateLimiter, signupRateLimiter } from '../lib/security';
@@ -16,6 +21,7 @@ interface AuthContextType {
   guestInfo: GuestInfo | null;
   loading: boolean;
   isGuest: boolean;
+  configError: string | null;
   signUp: (email: string, password: string, fullName: string, phone: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -39,11 +45,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [guestInfo, setGuestInfo] = useState<GuestInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
+  const configError = supabaseConfigurationError;
+  const client = supabase;
 
   // Fetch user profile from DB
   const fetchProfile = async (userId: string) => {
+    if (!client) {
+      return;
+    }
     try {
-      const { data: profile, error } = await supabase
+      const { data: profile, error } = await client
         .from('users')
         .select('*')
         .eq('id', userId)
@@ -59,7 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUserProfile(profile as UserProfile);
       } else {
         // Create fallback profile if user not found in DB
-        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const { data: { user: authUser } } = await client.auth.getUser();
         if (authUser) {
           const fallbackProfile: UserProfile = {
             id: authUser.id,
@@ -82,6 +93,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
     let initialLoadDone = false;
+
+    if (!client) {
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
     
     const handleAuth = async (_event: string, session: any) => {
       if (!mounted) return;
@@ -90,8 +108,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session.user);
         setIsGuest(false);
         setGuestInfo(null);
-        await fetchProfile(session.user.id);
         if (mounted) setLoading(false);
+        fetchProfile(session.user.id);
       } else {
         setUser(null);
         setUserProfile(null);
@@ -101,11 +119,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuth);
+  const { data: { subscription } } = client.auth.onAuthStateChange(handleAuth);
     
     // Get initial session only once
     if (!initialLoadDone) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      client.auth.getSession().then(({ data: { session } }) => {
         if (mounted) {
           initialLoadDone = true;
           handleAuth('INITIAL_SESSION', session);
@@ -117,10 +135,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [client]);
 
   // Auth actions
   const signUp = async (email: string, password: string, fullName: string, phone: string) => {
+    if (!client) {
+      throw new Error(configError || SUPABASE_CONFIG_ERROR);
+    }
+
     try {
       // Rate limiting check
       if (!signupRateLimiter.isAllowed(email)) {
@@ -135,7 +157,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         phone: sanitizeInput(phone)
       });
       
-      const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await client.auth.signUp({
         email: validatedData.email,
         password: validatedData.password,
         options: { 
@@ -158,7 +180,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (data.user) {
         try {
-          await supabase.from('users').insert({
+          await client.from('users').insert({
             id: data.user.id,
             email: validatedData.email,
             full_name: validatedData.fullName,
@@ -175,6 +197,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    if (!client) {
+      throw new Error(configError || SUPABASE_CONFIG_ERROR);
+    }
+
     try {
       // Rate limiting check
       if (!loginRateLimiter.isAllowed(email)) {
@@ -187,7 +213,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         password
       });
       
-      const { error } = await supabase.auth.signInWithPassword({ 
+      const { error } = await client.auth.signInWithPassword({ 
         email: validatedData.email, 
         password: validatedData.password 
       });
@@ -212,8 +238,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
+    if (!client) {
+      throw new Error(configError || SUPABASE_CONFIG_ERROR);
+    }
+
     try {
-      const { error } = await supabase.auth.signOut();
+      const { error } = await client.auth.signOut();
       if (error) throw error;
       // Clear guest state immediately
       setIsGuest(false);
@@ -245,15 +275,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const createAdminUser = async (email: string, password: string, fullName: string) => {
+    if (!client) {
+      throw new Error(configError || SUPABASE_CONFIG_ERROR);
+    }
+
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await client.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName, role: 'admin' } }
     });
     if (error) throw error;
     if (data.user) {
-      await supabase.from('users').insert({
+  await client.from('users').insert({
         id: data.user.id,
         email,
         full_name: fullName,
@@ -266,15 +300,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resendVerification = async (email: string) => {
+    if (!client) {
+      throw new Error(configError || SUPABASE_CONFIG_ERROR);
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    const { error } = await client.auth.resend({ type: 'signup', email });
     if (error) throw error;
     setLoading(false);
   };
 
   const resetPassword = async (email: string) => {
+    if (!client) {
+      throw new Error(configError || SUPABASE_CONFIG_ERROR);
+    }
+
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await client.auth.resetPasswordForEmail(email);
     if (error) throw error;
     setLoading(false);
   };
@@ -286,6 +328,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       guestInfo,
       loading,
       isGuest,
+  configError,
       signUp,
       signIn,
       signOut,

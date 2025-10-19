@@ -1,31 +1,55 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+export const SUPABASE_CONFIG_ERROR = 'Supabase environment variables are missing. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY).';
+
+let supabaseClient: SupabaseClient | null = null;
+let supabaseInitError: string | null = null;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  supabaseInitError = SUPABASE_CONFIG_ERROR;
+} else {
+  try {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storage: window.localStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        storageKey: 'supabase.auth.token',
+        debug: false
+      }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to initialise Supabase client.';
+    supabaseInitError = message;
+  }
 }
 
 // Storage configuration
+const storageUrl = import.meta.env.VITE_SUPABASE_STORAGE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_STORAGE_URL;
+const bucketName = import.meta.env.VITE_SUPABASE_BUCKET_NAME || import.meta.env.NEXT_PUBLIC_SUPABASE_BUCKET_NAME || 'restaurant-images';
+
 export const STORAGE_CONFIG = {
-  bucketName: 'restaurant-images', // Hardcoded to match the storage bucket creation script
-  storageUrl: import.meta.env.VITE_SUPABASE_STORAGE_URL,
-  maxFileSize: parseInt(import.meta.env.VITE_MAX_FILE_SIZE) || 5 * 1024 * 1024, // 5MB
+  bucketName,
+  storageUrl,
+  maxFileSize: parseInt(import.meta.env.VITE_MAX_FILE_SIZE || '', 10) || 5 * 1024 * 1024, // 5MB
   allowedTypes: (import.meta.env.VITE_ALLOWED_FILE_TYPES || 'image/jpeg,image/jpg,image/png,image/webp').split(',')
 };
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: window.localStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce',
-    storageKey: 'supabase.auth.token',
-    debug: false
+export const supabase = supabaseClient;
+export const isSupabaseConfigured = Boolean(supabaseClient);
+export const supabaseConfigurationError = supabaseInitError;
+
+export const assertSupabaseConfigured = (): SupabaseClient => {
+  if (!supabaseClient) {
+    throw new Error(supabaseInitError || SUPABASE_CONFIG_ERROR);
   }
-});
+  return supabaseClient;
+};
 
 export interface User {
   id: string;
@@ -42,7 +66,7 @@ export interface MenuItem {
   description: string;
   price: number;
   image_url: string;
-  category: 'morning' | 'afternoon' | 'dinner';
+  category: 'morning' | 'afternoon' | 'dinner' | 'all';
   is_available: boolean;
   is_vegetarian: boolean;
   created_at: string;
@@ -85,7 +109,7 @@ export interface AdminMenuItem {
   name: string;
   description: string;
   price: number;
-  category: 'morning' | 'afternoon' | 'dinner';
+  category: 'morning' | 'afternoon' | 'dinner' | 'all';
   isAvailable: boolean;
   isVegetarian: boolean;
   imageUrl?: string;
@@ -118,7 +142,8 @@ export interface AdminUser {
 
 // Storage helper functions
 export const uploadFile = async (file: File, path: string): Promise<string> => {
-  const { data, error } = await supabase.storage
+  const client = assertSupabaseConfigured();
+  const { data, error } = await client.storage
     .from(STORAGE_CONFIG.bucketName)
     .upload(path, file, {
       cacheControl: '3600',
@@ -129,7 +154,7 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
     throw new Error(`File upload failed: ${error.message}`);
   }
 
-  const { data: { publicUrl } } = supabase.storage
+  const { data: { publicUrl } } = client.storage
     .from(STORAGE_CONFIG.bucketName)
     .getPublicUrl(data.path);
 
@@ -137,7 +162,8 @@ export const uploadFile = async (file: File, path: string): Promise<string> => {
 };
 
 export const deleteFile = async (path: string): Promise<void> => {
-  const { error } = await supabase.storage
+  const client = assertSupabaseConfigured();
+  const { error } = await client.storage
     .from(STORAGE_CONFIG.bucketName)
     .remove([path]);
 

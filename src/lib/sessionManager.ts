@@ -1,12 +1,17 @@
   // Session Management Utilities
-import { supabase } from './supabase';
+import { supabase, SUPABASE_CONFIG_ERROR } from './supabase';
 
 /**
  * Check if user has a valid session
  */
 export const hasValidSession = async (): Promise<boolean> => {
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    const client = supabase;
+    if (!client) {
+      console.warn(SUPABASE_CONFIG_ERROR);
+      return false;
+    }
+    const { data: { session }, error } = await client.auth.getSession();
     
     if (error) {
       console.error('Session check error:', error);
@@ -25,7 +30,12 @@ export const hasValidSession = async (): Promise<boolean> => {
  */
 export const refreshSession = async (): Promise<boolean> => {
   try {
-    const { data: { session }, error } = await supabase.auth.refreshSession();
+    const client = supabase;
+    if (!client) {
+      console.warn(SUPABASE_CONFIG_ERROR);
+      return false;
+    }
+    const { data: { session }, error } = await client.auth.refreshSession();
     
     if (error) {
       console.error('Token refresh error:', error);
@@ -45,7 +55,12 @@ export const refreshSession = async (): Promise<boolean> => {
  */
 export const getSessionExpiry = async (): Promise<Date | null> => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const client = supabase;
+    if (!client) {
+      console.warn(SUPABASE_CONFIG_ERROR);
+      return null;
+    }
+    const { data: { session } } = await client.auth.getSession();
     
     if (!session) return null;
 
@@ -67,7 +82,12 @@ export const getSessionExpiry = async (): Promise<Date | null> => {
  */
 export const clearSession = async (): Promise<void> => {
   try {
-    await supabase.auth.signOut();
+    const client = supabase;
+    if (!client) {
+      console.warn(SUPABASE_CONFIG_ERROR);
+      return;
+    }
+    await client.auth.signOut();
     
     // Clear any additional localStorage items
     localStorage.removeItem('supabase.auth.token');
@@ -84,6 +104,10 @@ export const clearSession = async (): Promise<void> => {
  * Call this once on app init
  */
 export const setupAutoRefresh = () => {
+  if (!supabase) {
+    console.warn(SUPABASE_CONFIG_ERROR);
+    return () => undefined;
+  }
   // Check session every 5 minutes
   const intervalId = setInterval(async () => {
     const hasSession = await hasValidSession();
@@ -113,7 +137,14 @@ export const setupAutoRefresh = () => {
  */
 export const getSessionInfo = async () => {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const client = supabase;
+    if (!client) {
+      return {
+        hasSession: false,
+        message: SUPABASE_CONFIG_ERROR
+      };
+    }
+    const { data: { session } } = await client.auth.getSession();
     
     if (!session) {
       return {

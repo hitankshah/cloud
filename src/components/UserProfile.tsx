@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { User, Mail, Phone, Lock, X, Save, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
-import { supabase } from '../lib/supabase';
+import {
+  supabase,
+  supabaseConfigurationError,
+  SUPABASE_CONFIG_ERROR
+} from '../lib/supabase';
 
 interface UserProfileProps {
   onClose: () => void;
@@ -31,6 +35,9 @@ export const UserProfile = ({ onClose }: UserProfileProps) => {
 
     setLoading(true);
     try {
+      if (!supabase) {
+        throw new Error(supabaseConfigurationError || SUPABASE_CONFIG_ERROR);
+      }
       const { error } = await supabase
         .from('users')
         .update({
@@ -69,6 +76,9 @@ export const UserProfile = ({ onClose }: UserProfileProps) => {
 
     setLoading(true);
     try {
+      if (!supabase) {
+        throw new Error(supabaseConfigurationError || SUPABASE_CONFIG_ERROR);
+      }
       const { error } = await supabase.auth.updateUser({
         password: passwordForm.newPassword
       });
