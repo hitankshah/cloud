@@ -3,6 +3,11 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { SecurityProvider } from './lib/security';
+import {
+  isSupabaseConfigured,
+  supabaseConfigurationError,
+  SUPABASE_CONFIG_ERROR
+} from './lib/supabase';
 import { AuthModal } from './components/AuthModal';
 import { Header } from './components/Header';
 import { CartDrawer } from './components/CartDrawer';
@@ -20,7 +25,7 @@ function AppContent() {
   const [showCart, setShowCart] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [currentView, setCurrentView] = useState<View>('home');
-  const { loading } = useAuth();
+  const { loading, configError, user, isGuest } = useAuth();
 
   // Setup automatic session refresh
   useEffect(() => {
@@ -35,6 +40,30 @@ function AppContent() {
     }
   }, [currentView]);
 
+  if (!isSupabaseConfigured) {
+    const message = configError || supabaseConfigurationError || SUPABASE_CONFIG_ERROR;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-6 text-center">
+        <div className="max-w-xl bg-white shadow-lg rounded-2xl p-10 border border-gray-100">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-4">Configuration Required</h1>
+          <p className="text-gray-600 mb-6">
+            {message}
+          </p>
+          <div className="text-sm text-gray-500 space-y-2">
+            <p>
+              Add your Supabase project credentials to the environment variables file
+              (e.g. <code>.env.local</code>) and restart the app.
+            </p>
+            <p>
+              Expected keys: <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>
+              {' '}or <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -44,11 +73,20 @@ function AppContent() {
   }
 
   const handleCheckout = () => {
+    if (!user && !isGuest) {
+      setShowAuthModal(true);
+      return;
+    }
     setCurrentView('checkout');
   };
 
   const handleCheckoutSuccess = () => {
     setCurrentView('home');
+  };
+
+  const handleBackToHome = () => {
+    setCurrentView('home');
+    setShowCart(false);
   };
 
 
@@ -66,7 +104,7 @@ function AppContent() {
 
       {currentView === 'checkout' && (
         <Checkout
-          onBack={() => setShowCart(true)}
+          onBack={handleBackToHome}
           onSuccess={handleCheckoutSuccess}
         />
       )}

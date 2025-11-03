@@ -42,7 +42,7 @@ export interface MenuItem {
   description: string;
   price: number;
   image_url: string;
-  category: 'morning' | 'afternoon' | 'dinner';
+  category: 'morning' | 'afternoon' | 'dinner' | 'all';
   is_available: boolean;
   is_vegetarian: boolean;
   created_at: string;
@@ -85,7 +85,7 @@ export interface AdminMenuItem {
   name: string;
   description: string;
   price: number;
-  category: 'morning' | 'afternoon' | 'dinner';
+  category: 'morning' | 'afternoon' | 'dinner' | 'all';
   isAvailable: boolean;
   isVegetarian: boolean;
   imageUrl?: string;

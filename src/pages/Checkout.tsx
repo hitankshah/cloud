@@ -3,7 +3,11 @@ import { ArrowLeft, MapPin, Phone, FileText } from 'lucide-react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
-import { supabase } from '../lib/supabase';
+import {
+  supabase,
+  supabaseConfigurationError,
+  SUPABASE_CONFIG_ERROR
+} from '../lib/supabase';
 
 interface CheckoutProps {
   onBack: () => void;
@@ -43,6 +47,9 @@ export const Checkout = ({ onBack, onSuccess }: CheckoutProps) => {
     }
 
     try {
+      if (!supabase) {
+        throw new Error(supabaseConfigurationError || SUPABASE_CONFIG_ERROR);
+      }
       const orderData = {
         customer_id: isGuest ? null : user!.id,
         customer_name: isGuest ? customerName : userProfile!.full_name,
